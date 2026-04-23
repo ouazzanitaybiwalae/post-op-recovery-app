@@ -1,0 +1,23 @@
+{
+  "name": "questionnaire-service",
+  "version": "1.0.0",
+  "description": "Service de gestion des questionnaires post-opératoires",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js"
+  },
+  "keywords": ["questionnaire", "survey", "microservice"],
+  "author": "Votre équipe",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "body-parser": "^1.20.2",
+    "uuid": "^9.0.0",
+    "axios": "^1.6.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  }
+}
