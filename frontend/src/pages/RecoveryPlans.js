@@ -1,44 +1,44 @@
 import React, { useState } from 'react';
-import ExerciseList from '../components/ExerciseList';
-import ExerciseDetails from '../components/ExerciseDetails';
+import RecoveryPlanList from '../components/RecoveryPlanList';
+import RecoveryPlanDetails from '../components/RecoveryPlanDetails';
 import '../App.css';
-
-const Exercises = () => {
-  const [selectedExercise, setSelectedExercise] = useState(null);
+ 
+const RecoveryPlans = () => {
+  const [selectedPlan, setSelectedPlan] = useState(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
-
-  const handleSelectExercise = (exercise) => {
-    setSelectedExercise(exercise);
+ 
+  const handleSelectPlan = (plan) => {
+    setSelectedPlan(plan);
     setShowCreateForm(false);
   };
-
+ 
   const handleCreateNew = () => {
-    setSelectedExercise(null);
+    setSelectedPlan(null);
     setShowCreateForm(true);
   };
-
+ 
   const handleClose = () => {
-    setSelectedExercise(null);
+    setSelectedPlan(null);
     setShowCreateForm(false);
     // Recharger la liste
     window.location.reload();
   };
-
+ 
   return (
     <div className="page-container">
       <div className="page-header">
-        <h1>Bibliothèque d'Exercices</h1>
+        <h1>Plans de Récupération</h1>
       </div>
-
+ 
       <div className="page-content">
-        {!selectedExercise && !showCreateForm ? (
-          <ExerciseList
-            onSelectExercise={handleSelectExercise}
+        {!selectedPlan && !showCreateForm ? (
+          <RecoveryPlanList
+            onSelectPlan={handleSelectPlan}
             onCreateNew={handleCreateNew}
           />
         ) : (
-          <ExerciseDetails
-            exerciseId={selectedExercise?.id}
+          <RecoveryPlanDetails
+            planId={selectedPlan?.id}
             onClose={handleClose}
           />
         )}
@@ -46,5 +46,5 @@ const Exercises = () => {
     </div>
   );
 };
-
-export default Exercises;
+ 
+export default RecoveryPlans;

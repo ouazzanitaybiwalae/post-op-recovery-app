@@ -1,93 +1,32 @@
 version: '3.8'
  
 services:
-  # Service Recovery Plan
-  recovery-plan-service:
-    build: ./services/recovery-plan-service
-    container_name: recovery-plan-service
-    ports:
-      - "3001:3001"
-    environment:
-      - PORT=3001
-      - NODE_ENV=production
-    networks:
-      - app-network
-    restart: unless-stopped
- 
-  # Service Questionnaire
-  questionnaire-service:
-    build: ./services/questionnaire-service
-    container_name: questionnaire-service
-    ports:
-      - "3002:3002"
-    environment:
-      - PORT=3002
-      - NODE_ENV=production
-    networks:
-      - app-network
-    restart: unless-stopped
- 
-  # Service Exercise
-  exercise-service:
-    build: ./services/exercise-guidance-service
-    container_name: exercise-service
-    ports:
-      - "3003:3003"
-    environment:
-      - PORT=3003
-      - NODE_ENV=production
-    networks:
-      - app-network
-    restart: unless-stopped
- 
-  # Service Alert
-  alert-service:
-    build: ./services/complication-alert-service
-    container_name: alert-service
-    ports:
-      - "3004:3004"
-    environment:
-      - PORT=3004
-      - NODE_ENV=production
-    networks:
-      - app-network
-    restart: unless-stopped
- 
-  # Service Coordination
   coordination-service:
     build: ./services/care-coordination-service
-    container_name: coordination-service
     ports:
-      - "3005:3005"
-    environment:
-      - PORT=3005
-      - NODE_ENV=production
-    networks:
-      - app-network
-    restart: unless-stopped
+      - "5001:5001"
  
-  # Frontend React
+  alert-service:
+    build: ./services/complication-alert-service
+    ports:
+      - "5002:5002"
+ 
+  exercise-service:
+    build: ./services/exercise-guidance-service
+    ports:
+      - "5003:5003"
+ 
+  questionnaire-service:
+    build: ./services/questionnaire-service
+    ports:
+      - "5004:5004"
+ 
+  recovery-plan-service:
+    build: ./services/recovery-plan-service
+    ports:
+      - "5005:5005"
+ 
   frontend:
     build: ./frontend
-    container_name: frontend
     ports:
-      - "3000:3000"
-    environment:
-      - REACT_APP_RECOVERY_PLAN_API=http://localhost:3001
-      - REACT_APP_QUESTIONNAIRE_API=http://localhost:3002
-      - REACT_APP_EXERCISE_API=http://localhost:3003
-      - REACT_APP_ALERT_API=http://localhost:3004
-      - REACT_APP_COORDINATION_API=http://localhost:3005
-    networks:
-      - app-network
-    depends_on:
-      - recovery-plan-service
-      - questionnaire-service
-      - exercise-service
-      - alert-service
-      - coordination-service
-    restart: unless-stopped
- 
-networks:
-  app-network:
-    driver: bridge
+      - "3000:80"  # NGINX écoute sur le port 80
