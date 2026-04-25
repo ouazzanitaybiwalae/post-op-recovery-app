@@ -1,32 +1,74 @@
 version: '3.8'
- 
+
 services:
   coordination-service:
     build: ./services/care-coordination-service
+    env_file: .env
     ports:
-      - "5001:5001"
- 
+      - "5001:3001"   # HOST:CONTAINER — container listens on PORT=3001
+    environment:
+      - PORT=3001
+      - ALERT_SERVICE_URL=http://alert-service:3004
+
   alert-service:
     build: ./services/complication-alert-service
+    env_file: .env
     ports:
-      - "5002:5002"
- 
+      - "5002:3004"   # HOST:CONTAINER — container listens on PORT=3004
+    environment:
+      - PORT=3004
+
   exercise-service:
     build: ./services/exercise-guidance-service
+    env_file: .env
     ports:
-      - "5003:5003"
- 
+      - "5003:3003"   # HOST:CONTAINER — container listens on PORT=3003
+    environment:
+      - PORT=3003
+      - ALERT_SERVICE_URL=http://alert-service:3004
+    depends_on:
+      - alert-service
+
   questionnaire-service:
     build: ./services/questionnaire-service
+    env_file: .env
     ports:
-      - "5004:5004"
- 
+      - "5004:3002"   # HOST:CONTAINER — container listens on PORT=3002
+    environment:
+      - PORT=3002
+      - ALERT_SERVICE_URL=http://alert-service:3004
+    depends_on:
+      - alert-service
+
   recovery-plan-service:
     build: ./services/recovery-plan-service
+    env_file: .env
     ports:
-      - "5005:5005"
- 
+      - "5005:3005"   # HOST:CONTAINER — container listens on PORT=3005
+    environment:
+      - PORT=3005
+
   frontend:
     build: ./frontend
     ports:
-      - "3000:80"  # NGINX écoute sur le port 80
+      - "3000:80"     # nginx listens on 80 inside the container
+    depends_on:
+      - coordination-service
+      - alert-service
+      - exercise-service
+      - questionnaire-service
+      - recovery-plan-service
+
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: postoperative_care
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+volumes:
+  pgdata:
