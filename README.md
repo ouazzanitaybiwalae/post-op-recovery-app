@@ -1,16 +1,16 @@
-# 🏥 Application de Suivi Post-Opératoire
+# Application de Suivi Post-Opératoire
  
 Application de suivi personnalisé des patients en période post-opératoire avec détection précoce des complications.
  
-## 🎯 Fonctionnalités
+## Fonctionnalités
  
-- ✅ Parcours de récupération personnalisés
-- ✅ Questionnaires quotidiens automatiques
-- ✅ Guidance d'exercices avec vidéos
-- ✅ Détection automatique des complications
-- ✅ Coordination de l'équipe médicale
+- Parcours de récupération personnalisés
+- Questionnaires quotidiens automatiques
+- Guidance d'exercices avec vidéos
+- Détection automatique des complications
+- Coordination de l'équipe médicale
  
-## 🏗️ Architecture
+## Architecture
  
 Architecture microservices avec 5 services indépendants :
  
@@ -20,7 +20,7 @@ Architecture microservices avec 5 services indépendants :
 4. **Alert Service** (Port 3004) - Détection complications
 5. **Coordination Service** (Port 3005) - Communication équipe
  
-## 🚀 Installation
+## Installation
  
 ### Prérequis
 - Docker Desktop
