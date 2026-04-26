@@ -39,8 +39,7 @@ export const recoveryPlanService = {
   updatePhase: async (id, phase) => {
     const response = await recoveryPlanAPI.put(`/api/recovery-plan/${id}/phase`, { phase });
     return response.data;
-  }
-};
+  },
 
   getAllPlans: async () => {
     const response = await recoveryPlanAPI.get('/api/recovery-plan/templates');
@@ -52,4 +51,5 @@ export const recoveryPlanService = {
     return response.data;
   }
 };
+
 export default recoveryPlanService;

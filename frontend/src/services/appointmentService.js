@@ -6,6 +6,16 @@ export const appointmentService = {
     return response.data;
   },
 
+  getMyAppointments: async () => {
+    const response = await careCoordinationAPI.get('/api/appointment');
+    return response.data;
+  },
+
+  getPhysiotherapistAppointments: async () => {
+    const response = await careCoordinationAPI.get('/api/appointment');
+    return response.data;
+  },
+
   getPatientAppointments: async (patientId) => {
     const response = await careCoordinationAPI.get(`/api/appointment/patient/${patientId}`);
     return response.data;
@@ -26,6 +36,11 @@ export const appointmentService = {
     return response.data;
   },
 
+  updateAppointmentStatus: async (id, status) => {
+    const response = await careCoordinationAPI.put(`/api/appointment/${id}/status`, { status });
+    return response.data;
+  },
+
   cancelAppointment: async (id) => {
     const response = await careCoordinationAPI.put(`/api/appointment/${id}/cancel`);
     return response.data;
@@ -34,21 +49,12 @@ export const appointmentService = {
   confirmAppointment: async (id) => {
     const response = await careCoordinationAPI.put(`/api/appointment/${id}/confirm`);
     return response.data;
-  }
-};
+  },
 
-// Méthodes manquantes attendues par les composants
-appointmentService.getMyAppointments = appointmentService.getAllAppointments;
-appointmentService.getPhysiotherapistAppointments = appointmentService.getAllAppointments;
-appointmentService.deleteAppointment = async (id) => {
-  const { careCoordinationAPI } = await import('./api');
-  const response = await careCoordinationAPI.delete(`/api/appointment/${id}`);
-  return response.data;
-};
-appointmentService.updateAppointmentStatus = async (id, status) => {
-  const { careCoordinationAPI } = await import('./api');
-  const response = await careCoordinationAPI.put(`/api/appointment/${id}/status`, { status });
-  return response.data;
+  deleteAppointment: async (id) => {
+    const response = await careCoordinationAPI.delete(`/api/appointment/${id}`);
+    return response.data;
+  }
 };
 
 export default appointmentService;
