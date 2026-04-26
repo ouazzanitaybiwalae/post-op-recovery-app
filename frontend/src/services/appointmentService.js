@@ -36,3 +36,19 @@ export const appointmentService = {
     return response.data;
   }
 };
+
+// Méthodes manquantes attendues par les composants
+appointmentService.getMyAppointments = appointmentService.getAllAppointments;
+appointmentService.getPhysiotherapistAppointments = appointmentService.getAllAppointments;
+appointmentService.deleteAppointment = async (id) => {
+  const { careCoordinationAPI } = await import('./api');
+  const response = await careCoordinationAPI.delete(`/api/appointment/${id}`);
+  return response.data;
+};
+appointmentService.updateAppointmentStatus = async (id, status) => {
+  const { careCoordinationAPI } = await import('./api');
+  const response = await careCoordinationAPI.put(`/api/appointment/${id}/status`, { status });
+  return response.data;
+};
+
+export default appointmentService;

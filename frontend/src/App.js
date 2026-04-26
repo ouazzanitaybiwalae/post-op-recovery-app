@@ -1,100 +1,74 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import Navbar from './components/Navbar';
 import './App.css';
 
-// Page Login
-function Login() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+// Pages
+import Login from './pages/Login';
+import DashboardPage from './pages/Dashboard';
+import RecoveryPlans from './pages/RecoveryPlans';
+import Appointments from './pages/Appointments';
+import Questionnaire from './pages/Questionnaire';
+import Exercises from './pages/Exercises';
+import Alerts from './pages/Alerts';
+import Profile from './pages/Profile';
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (email && password) {
-      localStorage.setItem('user', JSON.stringify({ email, role: 'admin' }));
-      window.location.href = '/dashboard';
-    }
-  };
+// Route protégée : redirige vers /login si non authentifié
+const PrivateRoute = ({ children }) => {
+  const { isAuthenticated } = useAuth();
+  return isAuthenticated ? children : <Navigate to="/login" replace />;
+};
 
-  return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>
-      <div style={{ background: 'white', padding: '40px', borderRadius: '10px', maxWidth: '400px', width: '100%' }}>
-        <h1 style={{ textAlign: 'center', color: '#667eea' }}>🏥 Post-Op Recovery</h1>
-        <h2 style={{ textAlign: 'center' }}>Connexion</h2>
-
-        <form onSubmit={handleSubmit}>
-          <div style={{ marginBottom: '20px' }}>
-            <label>Email</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              style={{ width: '100%', padding: '12px' }}
-              required
-            />
-          </div>
-
-          <div style={{ marginBottom: '20px' }}>
-            <label>Mot de passe</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              style={{ width: '100%', padding: '12px' }}
-              required
-            />
-          </div>
-
-          <button type="submit" style={{ width: '100%', padding: '12px' }}>
-            Se connecter
-          </button>
-        </form>
-      </div>
-    </div>
-  );
-}
-
-// Dashboard
-function Dashboard() {
-  const [user, setUser] = useState(null);
-
-  useEffect(() => {
-    const userData = localStorage.getItem('user');
-    if (userData) {
-      setUser(JSON.parse(userData));
-    } else {
-      window.location.href = '/login';
-    }
-  }, []);
-
-  const handleLogout = () => {
-    localStorage.removeItem('user');
-    window.location.href = '/login';
-  };
-
-  if (!user) return <div>Chargement...</div>;
+// Layout avec Navbar uniquement pour les pages authentifiées
+const AppLayout = () => {
+  const { isAuthenticated } = useAuth();
 
   return (
-    <div style={{ minHeight: '100vh' }}>
-      <h1>Dashboard</h1>
-      <p>{user.email}</p>
+    <>
+      {isAuthenticated && <Navbar />}
+      <Routes>
+        {/* Routes publiques */}
+        <Route path="/login" element={<Login />} />
 
-      <button onClick={handleLogout}>
-        Déconnexion
-      </button>
-    </div>
+        {/* Routes protégées */}
+        <Route path="/dashboard" element={
+          <PrivateRoute><DashboardPage /></PrivateRoute>
+        } />
+        <Route path="/recovery-plans" element={
+          <PrivateRoute><RecoveryPlans /></PrivateRoute>
+        } />
+        <Route path="/appointments" element={
+          <PrivateRoute><Appointments /></PrivateRoute>
+        } />
+        <Route path="/questionnaires" element={
+          <PrivateRoute><Questionnaire /></PrivateRoute>
+        } />
+        <Route path="/exercises" element={
+          <PrivateRoute><Exercises /></PrivateRoute>
+        } />
+        <Route path="/alerts" element={
+          <PrivateRoute><Alerts /></PrivateRoute>
+        } />
+        <Route path="/profile" element={
+          <PrivateRoute><Profile /></PrivateRoute>
+        } />
+
+        {/* Redirection par défaut */}
+        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      </Routes>
+    </>
   );
-}
+};
 
-// App principal
 function App() {
   return (
-    <Router>
-      <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/" element={<Navigate to="/login" />} />
-      </Routes>
-    </Router>
+    <AuthProvider>
+      <Router>
+        <AppLayout />
+      </Router>
+    </AuthProvider>
   );
 }
 

@@ -41,3 +41,15 @@ export const recoveryPlanService = {
     return response.data;
   }
 };
+
+  getAllPlans: async () => {
+    const response = await recoveryPlanAPI.get('/api/recovery-plan/templates');
+    return response.data;
+  },
+
+  getMyPlans: async () => {
+    const response = await recoveryPlanAPI.get('/api/recovery-plan/templates');
+    return response.data;
+  }
+};
+export default recoveryPlanService;

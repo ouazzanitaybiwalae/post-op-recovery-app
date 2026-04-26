@@ -31,3 +31,4 @@ export const questionnaireService = {
     return response.data;
   }
 };
+export default questionnaireService;

@@ -12,32 +12,53 @@ export const useAuth = () => {
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
+  const [token, setToken] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
-    if (storedUser) {
+    const storedToken = localStorage.getItem('token');
+    if (storedUser && storedToken) {
       setUser(JSON.parse(storedUser));
+      setToken(storedToken);
     }
     setLoading(false);
   }, []);
 
-  const login = (userData) => {
-    setUser(userData);
-    localStorage.setItem('user', JSON.stringify(userData));
+  // Accepte login(token, user) ou login(userData)
+  const login = (tokenOrUser, userObj) => {
+    if (userObj !== undefined) {
+      setToken(tokenOrUser);
+      setUser(userObj);
+      localStorage.setItem('token', tokenOrUser);
+      localStorage.setItem('user', JSON.stringify(userObj));
+    } else {
+      setUser(tokenOrUser);
+      localStorage.setItem('user', JSON.stringify(tokenOrUser));
+    }
   };
 
   const logout = () => {
     setUser(null);
+    setToken(null);
     localStorage.removeItem('user');
+    localStorage.removeItem('token');
+  };
+
+  // Utilisé par Profile.js pour mettre à jour les infos utilisateur
+  const updateUser = (updatedUser) => {
+    setUser(updatedUser);
+    localStorage.setItem('user', JSON.stringify(updatedUser));
   };
 
   const value = {
     user,
+    token,
     login,
     logout,
+    updateUser,
     loading,
-    isAuthenticated: !!user
+    isAuthenticated: !!user,
   };
 
   return (
@@ -46,3 +67,5 @@ export const AuthProvider = ({ children }) => {
     </AuthContext.Provider>
   );
 };
+
+export { AuthContext };

@@ -31,3 +31,4 @@ export const alertService = {
     return response.data;
   }
 };
+export default alertService;

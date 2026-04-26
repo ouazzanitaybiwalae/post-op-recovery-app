@@ -36,3 +36,4 @@ export const exerciseService = {
     return response.data;
   }
 };
+export default exerciseService;
