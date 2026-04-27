@@ -14,24 +14,32 @@ const API = {
 const getUsers = () => JSON.parse(localStorage.getItem('users') || '[]');
 const saveUsers = (users) => localStorage.setItem('users', JSON.stringify(users));
 
+// Gestion des parcours supprimés localement
+const getDeletedPlans = () => JSON.parse(localStorage.getItem('deleted_plans') || '[]');
+const addDeletedPlan = (id) => {
+  const deleted = getDeletedPlans();
+  if (!deleted.includes(id)) {
+    localStorage.setItem('deleted_plans', JSON.stringify([...deleted, id]));
+  }
+};
+const clearDeletedPlans = () => localStorage.removeItem('deleted_plans');
+
 const ROLES = ['patient', 'chirurgien', 'kinesitherapeute', 'infirmier', 'coordinateur'];
 
 // ============ VIDEOS PAR CATEGORIE D'EXERCICE ============
-// Vidéos YouTube pertinentes selon la catégorie médicale
 const VIDEOS = {
-  'knee':      'https://www.youtube.com/embed/2XaKMBjdEo0',   // Rééducation genou
-  'ankle':     'https://www.youtube.com/embed/sTANio_2E0Q',   // Rééducation cheville
-  'cardiac':   'https://www.youtube.com/embed/4pKly2JojMw',   // Rééducation cardiaque
-  'shoulder':  'https://www.youtube.com/embed/VHSiRFkBRrA',   // Rééducation épaule
-  'hip':       'https://www.youtube.com/embed/ow9F7q1q3qs',   // Rééducation hanche
-  'back':      'https://www.youtube.com/embed/g8IBh5QnZSA',   // Rééducation dos
-  'breathing': 'https://www.youtube.com/embed/tybOi4hjZFQ',   // Exercices respiratoires
-  'balance':   'https://www.youtube.com/embed/u9KHBNwmEPs',   // Équilibre & proprioception
-  'strength':  'https://www.youtube.com/embed/2W4ZNSwoW_4',   // Renforcement musculaire
-  'default':   'https://www.youtube.com/embed/j7rKKpwdXNE',   // Exercices généraux
+  'knee':      'https://www.youtube.com/embed/2XaKMBjdEo0',
+  'ankle':     'https://www.youtube.com/embed/sTANio_2E0Q',
+  'cardiac':   'https://www.youtube.com/embed/4pKly2JojMw',
+  'shoulder':  'https://www.youtube.com/embed/VHSiRFkBRrA',
+  'hip':       'https://www.youtube.com/embed/ow9F7q1q3qs',
+  'back':      'https://www.youtube.com/embed/g8IBh5QnZSA',
+  'breathing': 'https://www.youtube.com/embed/tybOi4hjZFQ',
+  'balance':   'https://www.youtube.com/embed/u9KHBNwmEPs',
+  'strength':  'https://www.youtube.com/embed/2W4ZNSwoW_4',
+  'default':   'https://www.youtube.com/embed/j7rKKpwdXNE',
 };
 
-// Mapping catégorie exercice -> clé vidéo
 const getVideoKey = (category) => {
   if (!category) return 'default';
   const cat = category.toLowerCase();
@@ -72,6 +80,7 @@ const S = {
   modal: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 },
   mbox: { background: 'white', borderRadius: '16px', padding: '28px', width: '560px', maxHeight: '85vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' },
   patientBanner: { background: 'linear-gradient(135deg,#667eea,#764ba2)', borderRadius: '12px', padding: '20px 24px', marginBottom: '24px', color: 'white', display: 'flex', alignItems: 'center', gap: '16px' },
+  btnDelete: { background: 'none', border: '1px solid #fed7d7', borderRadius: '6px', cursor: 'pointer', padding: '4px 8px', fontSize: '14px', color: '#e53e3e', flexShrink: 0, marginLeft: '8px' },
 };
 
 // ============ COMPOSANTS UTILS ============
@@ -84,6 +93,34 @@ function Modal({ title, onClose, children }) {
           <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: '22px', cursor: 'pointer' }}>✕</button>
         </div>
         {children}
+      </div>
+    </div>
+  );
+}
+
+function ConfirmModal({ item, onConfirm, onCancel }) {
+  if (!item) return null;
+  return (
+    <div style={S.modal} onClick={onCancel}>
+      <div style={{ ...S.mbox, width: '420px', maxHeight: 'unset' }} onClick={e => e.stopPropagation()}>
+        <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+          <div style={{ fontSize: '48px', marginBottom: '8px' }}>🗑️</div>
+          <h2 style={{ fontSize: '18px', color: '#1a1a2e', marginBottom: '8px' }}>Confirmer la suppression</h2>
+          <p style={{ fontSize: '14px', color: '#666', lineHeight: '1.6' }}>
+            Voulez-vous vraiment supprimer <strong>« {item.label} »</strong> ?
+            {(item.type === 'patient' || item.type === 'all-patients') && (
+              <><br /><span style={{ color: '#e53e3e', fontSize: '13px' }}>⚠️ Cette action est irréversible.</span></>
+            )}
+          </p>
+        </div>
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <button onClick={onConfirm} style={{ ...S.btn('#e53e3e'), flex: 1, padding: '12px', fontSize: '14px' }}>
+            🗑️ Oui, supprimer
+          </button>
+          <button onClick={onCancel} style={{ ...S.btn('#f0f0f0', '#555'), flex: 1, padding: '12px' }}>
+            Annuler
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -106,7 +143,6 @@ function Navbar({ user, onLogout }) {
   const loc = useLocation();
   const isPatient = user?.role === 'patient';
 
-  // Navigation selon le rôle
   const proLinks = [
     { path: '/dashboard',      label: 'Dashboard',      icon: '📊' },
     { path: '/parcours',       label: 'Parcours',        icon: '📋' },
@@ -116,18 +152,17 @@ function Navbar({ user, onLogout }) {
     { path: '/coordination',   label: 'Coordination',    icon: '👥' },
   ];
 
-  // Patient voit : son tableau de bord, ses questionnaires, ses exercices, son parcours
   const patientLinks = [
-    { path: '/dashboard',      label: 'Mon suivi',       icon: '🏠' },
-    { path: '/mon-parcours',   label: 'Mon parcours',    icon: '📋' },
+    { path: '/dashboard',          label: 'Mon suivi',          icon: '🏠' },
+    { path: '/mon-parcours',       label: 'Mon parcours',       icon: '📋' },
     { path: '/mes-questionnaires', label: 'Mes questionnaires', icon: '📝' },
-    { path: '/mes-exercices',  label: 'Mes exercices',   icon: '💪' },
+    { path: '/mes-exercices',      label: 'Mes exercices',      icon: '💪' },
   ];
 
   const links = isPatient ? patientLinks : proLinks;
 
-  const roleIcons = { patient: '🤒', chirurgien: '👨‍⚕️', kinesitherapeute: '🏃', infirmier: '👩‍⚕️', coordinateur: '📋' };
-  const roleLabels = { patient: 'Patient', chirurgien: 'Chirurgien', kinesitherapeute: 'Kinésithérapeute', infirmier: 'Infirmier(e)', coordinateur: 'Coordinateur' };
+  const roleIcons   = { patient: '🤒', chirurgien: '👨‍⚕️', kinesitherapeute: '🏃', infirmier: '👩‍⚕️', coordinateur: '📋' };
+  const roleLabels  = { patient: 'Patient', chirurgien: 'Chirurgien', kinesitherapeute: 'Kinésithérapeute', infirmier: 'Infirmier(e)', coordinateur: 'Coordinateur' };
 
   return (
     <nav style={S.nav}>
@@ -255,9 +290,33 @@ function PageDashboard({ user }) {
   const [alertes, setAlertes] = useState([]);
   const [plans, setPlans] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [confirmDelete, setConfirmDelete] = useState(null);
+  const [patients, setPatients] = useState([]);
+  const [msg, setMsg] = useState('');
   const isPatient = user?.role === 'patient';
 
+  const refreshPatients = () => setPatients(getUsers().filter(u => u.role === 'patient'));
+
+  const filterDeletedPlans = (plansList) => {
+    const deletedPlans = getDeletedPlans();
+    return plansList.filter(plan => !deletedPlans.includes(plan.id));
+  };
+
+  const refreshPlans = async () => {
+    try {
+      const pRes = await fetch(`${API.recovery}/api/recovery-plans`);
+      const data = await pRes.json();
+      let allPlans = data.recoveryPlans || [];
+      allPlans = filterDeletedPlans(allPlans);
+      setPlans(allPlans.slice(0, 3));
+      setStats(s => ({ ...s, plans: allPlans.length }));
+    } catch (error) {
+      console.error('Erreur refreshPlans:', error);
+    }
+  };
+
   useEffect(() => {
+    refreshPatients();
     const load = async () => {
       try {
         const [aRes, pRes, eRes] = await Promise.allSettled([
@@ -266,30 +325,96 @@ function PageDashboard({ user }) {
           fetch(`${API.exercise}/api/exercise/library`).then(r => r.json()),
         ]);
         const a = aRes.status === 'fulfilled' ? (aRes.value.alerts || []) : [];
-        const p = pRes.status === 'fulfilled' ? (pRes.value.recoveryPlans || []) : [];
+        let p = pRes.status === 'fulfilled' ? (pRes.value.recoveryPlans || []) : [];
         const e = eRes.status === 'fulfilled' ? (eRes.value.exercises || []) : [];
+        
+        p = filterDeletedPlans(p);
+        
         setAlertes(a.slice(0, 4));
         setPlans(p.slice(0, 3));
         setStats({ alertes: a.length, plans: p.length, exercices: e.length, questionnaires: 0 });
-      } catch {}
+      } catch (error) {
+        console.error('Erreur chargement dashboard:', error);
+      }
       setLoading(false);
     };
     load();
   }, []);
+
+  const handleConfirm = async () => {
+    if (!confirmDelete) return;
+    const { type, id } = confirmDelete;
+
+    if (type === 'patient') {
+      const updated = getUsers().filter(u => u.id !== id);
+      saveUsers(updated);
+      refreshPatients();
+      setMsg('✅ Patient supprimé.');
+    } else if (type === 'all-patients') {
+      saveUsers(getUsers().filter(u => u.role !== 'patient'));
+      refreshPatients();
+      setMsg('✅ Tous les patients ont été supprimés.');
+    } else if (type === 'plan') {
+      try {
+        const response = await fetch(`${API.recovery}/api/recovery-plan/${id}`, { 
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Erreur HTTP: ${response.status}`);
+        }
+        
+        await refreshPlans();
+        setMsg('✅ Parcours supprimé avec succès !');
+        
+      } catch (error) {
+        console.error('Erreur API:', error);
+        
+        const currentPlans = plans;
+        const updatedPlans = currentPlans.filter(p => p.id !== id);
+        setPlans(updatedPlans);
+        setStats(s => ({ ...s, plans: updatedPlans.length }));
+        
+        addDeletedPlan(id);
+        
+        setMsg('✅ Parcours supprimé localement');
+      }
+    }
+
+    setConfirmDelete(null);
+    setTimeout(() => setMsg(''), 3000);
+  };
+
+  const clearDeletedCache = () => {
+    clearDeletedPlans();
+    refreshPlans();
+    setMsg('✅ Cache des suppressions nettoyé');
+    setTimeout(() => setMsg(''), 3000);
+  };
 
   if (isPatient) return <PageDashboardPatient user={user} />;
   if (loading) return <div style={S.page}><Spinner /></div>;
 
   return (
     <div style={S.page}>
-      <h1 style={S.h1}>📊 Tableau de bord professionnel</h1>
-      <p style={S.sub}>Bienvenue {user?.prenom} {user?.nom} — {user?.role} — {new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</p>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div>
+          <h1 style={S.h1}>📊 Tableau de bord professionnel</h1>
+          <p style={S.sub}>Bienvenue {user?.prenom} {user?.nom} — {user?.role} — {new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</p>
+        </div>
+        <button onClick={clearDeletedCache} style={S.btn('#888', 'white')}>🧹 Nettoyer cache</button>
+      </div>
+
+      <ConfirmModal item={confirmDelete} onConfirm={handleConfirm} onCancel={() => setConfirmDelete(null)} />
+
+      {msg && <SuccessBox msg={msg} />}
 
       <div style={S.g4}>
         <div style={S.metric('#e53e3e')}><div style={{ fontSize: '28px' }}>🚨</div><div style={{ fontSize: '32px', fontWeight: '700', color: '#e53e3e' }}>{stats.alertes}</div><div style={{ fontSize: '13px', color: '#666' }}>Alertes actives</div></div>
         <div style={S.metric('#667eea')}><div style={{ fontSize: '28px' }}>📋</div><div style={{ fontSize: '32px', fontWeight: '700' }}>{stats.plans}</div><div style={{ fontSize: '13px', color: '#666' }}>Parcours créés</div></div>
         <div style={S.metric('#48bb78')}><div style={{ fontSize: '28px' }}>💪</div><div style={{ fontSize: '32px', fontWeight: '700' }}>{stats.exercices}</div><div style={{ fontSize: '13px', color: '#666' }}>Exercices disponibles</div></div>
-        <div style={S.metric('#ed8936')}><div style={{ fontSize: '28px' }}>👥</div><div style={{ fontSize: '32px', fontWeight: '700' }}>{getUsers().filter(u => u.role === 'patient').length}</div><div style={{ fontSize: '13px', color: '#666' }}>Patients inscrits</div></div>
+        <div style={S.metric('#ed8936')}><div style={{ fontSize: '28px' }}>👥</div><div style={{ fontSize: '32px', fontWeight: '700' }}>{patients.length}</div><div style={{ fontSize: '13px', color: '#666' }}>Patients inscrits</div></div>
       </div>
 
       <div style={S.g2}>
@@ -312,32 +437,56 @@ function PageDashboard({ user }) {
           <h3 style={{ marginBottom: '16px' }}>📋 Parcours récents</h3>
           {plans.length === 0 && <div style={{ color: '#aaa', textAlign: 'center', padding: '20px' }}>Aucun parcours créé</div>}
           {plans.map((p, i) => (
-            <div key={p.id} style={S.row}>
-              <div style={S.av(C(i))}>{p.templateName?.[0] || 'P'}</div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: '600', fontSize: '13px' }}>{p.templateName}</div>
-                <div style={{ fontSize: '12px', color: '#888' }}>{p.duration} jours · Patient: {p.patientId}</div>
+            <div key={p.id} style={{ ...S.row, justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: 0 }}>
+                <div style={S.av(C(i))}>{p.templateName?.[0] || 'P'}</div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: '600', fontSize: '13px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.templateName}</div>
+                  <div style={{ fontSize: '12px', color: '#888' }}>{p.duration} jours · Patient: {p.patientId}</div>
+                </div>
+                <span style={S.badge('#276749', '#c6f6d5')}>{p.status}</span>
               </div>
-              <span style={S.badge('#276749', '#c6f6d5')}>{p.status}</span>
+              <button
+                onClick={() => setConfirmDelete({ type: 'plan', id: p.id, label: p.templateName })}
+                title="Supprimer ce parcours"
+                style={S.btnDelete}>
+                🗑️
+              </button>
             </div>
           ))}
         </div>
       </div>
 
-      {/* Liste des patients inscrits */}
       <div style={S.card}>
-        <h3 style={{ marginBottom: '16px' }}>👥 Patients inscrits ({getUsers().filter(u => u.role === 'patient').length})</h3>
-        {getUsers().filter(u => u.role === 'patient').length === 0 && (
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+          <h3>👥 Patients inscrits ({patients.length})</h3>
+          {patients.length > 0 && (
+            <button
+              onClick={() => setConfirmDelete({ type: 'all-patients', id: null, label: 'TOUS les patients inscrits' })}
+              style={{ ...S.btn('#fff5f5', '#c53030'), border: '1px solid #fed7d7', fontSize: '12px', padding: '7px 13px' }}>
+              🧹 Tout réinitialiser
+            </button>
+          )}
+        </div>
+
+        {patients.length === 0 && (
           <div style={{ color: '#aaa', textAlign: 'center', padding: '20px' }}>Aucun patient inscrit pour le moment</div>
         )}
+
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '12px' }}>
-          {getUsers().filter(u => u.role === 'patient').map((p, i) => (
+          {patients.map((p, i) => (
             <div key={p.id} style={{ padding: '12px', background: '#f7f7fa', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '10px' }}>
               <div style={S.av(C(i))}>{p.prenom?.[0]}{p.nom?.[0]}</div>
-              <div>
-                <div style={{ fontWeight: '600', fontSize: '13px' }}>{p.prenom} {p.nom}</div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontWeight: '600', fontSize: '13px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.prenom} {p.nom}</div>
                 <div style={{ fontSize: '11px', color: '#888' }}>ID: {p.id}</div>
               </div>
+              <button
+                onClick={() => setConfirmDelete({ type: 'patient', id: p.id, label: `${p.prenom} ${p.nom}` })}
+                title="Supprimer ce patient"
+                style={S.btnDelete}>
+                🗑️
+              </button>
             </div>
           ))}
         </div>
@@ -361,17 +510,20 @@ function PageDashboardPatient({ user }) {
           fetch(`${API.questionnaire}/api/questionnaire/patient/${user.id}`).then(r => r.json()),
           fetch(`${API.exercise}/api/exercise/session/patient/${user.id}`).then(r => r.json()),
         ]);
-        // Trouver le parcours du patient
-        const allPlans = pRes.status === 'fulfilled' ? (pRes.value.recoveryPlans || []) : [];
+        let allPlans = pRes.status === 'fulfilled' ? (pRes.value.recoveryPlans || []) : [];
+        const deletedPlans = getDeletedPlans();
+        allPlans = allPlans.filter(p => !deletedPlans.includes(p.id));
         const monPlan = allPlans.find(p => p.patientId === user.id || p.patientId === `${user.prenom} ${user.nom}`);
         setMyPlan(monPlan || null);
         setMyQuestionnaires(qRes.status === 'fulfilled' ? (qRes.value.patientQuestionnaires || []) : []);
         setMyExercices(eRes.status === 'fulfilled' ? (eRes.value.sessions || eRes.value.exerciseSessions || []) : []);
-      } catch {}
+      } catch (error) {
+        console.error('Erreur chargement dashboard patient:', error);
+      }
       setLoading(false);
     };
     load();
-  }, [user.id]);
+  }, [user.id, user.prenom, user.nom]);
 
   if (loading) return <div style={S.page}><Spinner /></div>;
 
@@ -380,7 +532,6 @@ function PageDashboardPatient({ user }) {
 
   return (
     <div style={S.page}>
-      {/* Bannière de bienvenue patient */}
       <div style={S.patientBanner}>
         <div style={{ fontSize: '48px' }}>🤒</div>
         <div>
@@ -391,7 +542,6 @@ function PageDashboardPatient({ user }) {
         </div>
       </div>
 
-      {/* Métriques patient */}
       <div style={S.g3}>
         <div style={S.metric('#ed8936')}>
           <div style={{ fontSize: '28px' }}>📝</div>
@@ -411,7 +561,6 @@ function PageDashboardPatient({ user }) {
         </div>
       </div>
 
-      {/* Parcours du patient */}
       {myPlan ? (
         <div style={{ ...S.card, borderLeft: '4px solid #667eea' }}>
           <h3 style={{ marginBottom: '12px' }}>📋 Mon parcours de récupération</h3>
@@ -432,7 +581,6 @@ function PageDashboardPatient({ user }) {
         </div>
       )}
 
-      {/* Questionnaires en attente */}
       {qEnAttente > 0 && (
         <div style={{ ...S.card, border: '2px solid #e53e3e' }}>
           <h3 style={{ marginBottom: '12px', color: '#e53e3e' }}>⚠️ Questionnaire(s) à remplir</h3>
@@ -459,8 +607,9 @@ function PageMonParcours({ user }) {
   useEffect(() => {
     fetch(`${API.recovery}/api/recovery-plans`).then(r => r.json())
       .then(data => {
-        const all = data.recoveryPlans || [];
-        // Chercher le parcours par ID ou par nom (prénom + nom)
+        let all = data.recoveryPlans || [];
+        const deletedPlans = getDeletedPlans();
+        all = all.filter(p => !deletedPlans.includes(p.id));
         const mine = all.filter(p =>
           p.patientId === user.id ||
           p.patientId === `${user.prenom} ${user.nom}` ||
@@ -487,7 +636,7 @@ function PageMonParcours({ user }) {
         </div>
       )}
 
-      {plans.map((p, i) => (
+      {plans.map((p) => (
         <div key={p.id} style={{ ...S.card, borderLeft: '4px solid #667eea' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
             <div>
@@ -554,7 +703,6 @@ function PageMesQuestionnaires({ user }) {
     load();
   }, [user.id]);
 
-  // Enrichir les questionnaires du patient avec les questions du template
   const getQuestionsForQuestionnaire = (q) => {
     const template = templates.find(t => t.id === q.templateId);
     return template?.questions || q.questions || [];
@@ -599,7 +747,6 @@ function PageMesQuestionnaires({ user }) {
       {msg && <div style={{ padding: '12px', background: msg.includes('⚠️') ? '#feebc8' : '#c6f6d5', color: msg.includes('⚠️') ? '#c05621' : '#276749', borderRadius: '8px', marginBottom: '16px', fontWeight: '600' }}>{msg}</div>}
       <ErrBox msg={err} />
 
-      {/* Modal de remplissage */}
       {showFill && (
         <Modal title={`📝 ${showFill.templateName}`} onClose={() => { setShowFill(null); setAnswers({}); }}>
           <p style={{ fontSize: '13px', color: '#666', marginBottom: '16px' }}>
@@ -649,7 +796,6 @@ function PageMesQuestionnaires({ user }) {
                   </select>
                 )}
 
-                {/* Alerte visuelle si valeur dépasse le seuil */}
                 {q.alertThreshold && answers[i] > q.alertThreshold && (
                   <div style={{ marginTop: '8px', padding: '8px', background: '#fff5f5', border: '1px solid #feb2b2', borderRadius: '6px', fontSize: '12px', color: '#c53030', fontWeight: '600' }}>
                     ⚠️ Valeur élevée — Seuil d'alerte : {q.alertThreshold}. Votre équipe sera notifiée.
@@ -665,7 +811,6 @@ function PageMesQuestionnaires({ user }) {
         </Modal>
       )}
 
-      {/* Questionnaires en attente */}
       <h3 style={{ marginBottom: '12px' }}>📬 À remplir ({enAttente.length})</h3>
       {enAttente.length === 0 ? (
         <div style={{ ...S.card, textAlign: 'center', padding: '30px', color: '#48bb78' }}>
@@ -687,7 +832,6 @@ function PageMesQuestionnaires({ user }) {
         ))
       )}
 
-      {/* Questionnaires complétés */}
       {completes.length > 0 && (
         <>
           <h3 style={{ marginBottom: '12px', marginTop: '24px' }}>✅ Questionnaires complétés ({completes.length})</h3>
@@ -731,7 +875,6 @@ function PageMesExercices({ user }) {
     load();
   }, [user.id]);
 
-  // Résoudre les exercices d'une session
   const getExercicesDeSession = (session) => {
     if (!session.exerciseIds) return [];
     return session.exerciseIds.map(id => library.find(e => e.id === id)).filter(Boolean);
@@ -746,7 +889,6 @@ function PageMesExercices({ user }) {
 
       <ErrBox msg={err} />
 
-      {/* Modal vidéo */}
       {videoModal && (
         <Modal title={`▶️ ${videoModal.name}`} onClose={() => setVideoModal(null)}>
           <iframe
@@ -789,14 +931,12 @@ function PageMesExercices({ user }) {
             <div style={{ fontSize: '16px', marginBottom: '8px' }}>Aucun plan d'exercices assigné pour le moment</div>
             <div style={{ fontSize: '13px' }}>Votre kinésithérapeute ou infirmier(e) vous assignera des exercices adaptés</div>
           </div>
-
-          {/* Afficher la bibliothèque complète en lecture seule pour le patient */}
           <h3 style={{ marginBottom: '12px' }}>📚 Bibliothèque d'exercices disponibles</h3>
           <p style={{ fontSize: '13px', color: '#888', marginBottom: '16px' }}>
             Découvrez les exercices disponibles. Votre équipe médicale sélectionnera ceux adaptés à votre situation.
           </p>
           <div style={S.g2}>
-            {library.map((ex, i) => (
+            {library.map((ex) => (
               <ExerciceCard key={ex.id} ex={ex} onVideo={() => setVideoModal(ex)} />
             ))}
           </div>
@@ -855,8 +995,26 @@ function PageParcours({ user }) {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState('');
   const [msg, setMsg] = useState('');
+  const [confirmDelete, setConfirmDelete] = useState(null);
   const patients = getUsers().filter(u => u.role === 'patient');
   const f = (k) => (e) => setForm({ ...form, [k]: e.target.value });
+
+  const filterDeletedPlans = (plansList) => {
+    const deletedPlans = getDeletedPlans();
+    return plansList.filter(plan => !deletedPlans.includes(plan.id));
+  };
+
+  const refreshAllPlans = async () => {
+    try {
+      const pRes = await fetch(`${API.recovery}/api/recovery-plans`);
+      const data = await pRes.json();
+      let allPlans = data.recoveryPlans || [];
+      allPlans = filterDeletedPlans(allPlans);
+      setPlans(allPlans);
+    } catch (error) {
+      console.error('Erreur rafraîchissement:', error);
+    }
+  };
 
   useEffect(() => {
     const load = async () => {
@@ -866,11 +1024,24 @@ function PageParcours({ user }) {
           fetch(`${API.recovery}/api/recovery-plans`).then(r => r.json()),
         ]);
         setTemplates(tRes.templates || []);
-        setPlans(pRes.recoveryPlans || []);
+        let allPlans = pRes.recoveryPlans || [];
+        allPlans = filterDeletedPlans(allPlans);
+        setPlans(allPlans);
       } catch { setErr('Erreur chargement'); }
       setLoading(false);
     };
     load();
+  }, []);
+
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        refreshAllPlans();
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, []);
 
   const handleCreate = async (e) => {
@@ -890,7 +1061,7 @@ function PageParcours({ user }) {
       });
       const data = await res.json();
       if (data.success) {
-        setPlans([...plans, data.recoveryPlan]);
+        await refreshAllPlans();
         setShowForm(false);
         setMsg('✅ Parcours créé avec succès !');
         setForm({ patientId: '', templateId: '', age: '', physicalCondition: 'normal', comorbidities: [] });
@@ -899,18 +1070,61 @@ function PageParcours({ user }) {
     } catch { setErr('Erreur de connexion au service'); }
   };
 
+  const handleDeletePlan = async () => {
+    if (!confirmDelete) return;
+    
+    try {
+      const response = await fetch(`${API.recovery}/api/recovery-plan/${confirmDelete.id}`, { 
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Erreur HTTP: ${response.status}`);
+      }
+      
+      await refreshAllPlans();
+      setMsg('✅ Parcours supprimé avec succès !');
+      
+    } catch (error) {
+      console.error('Erreur suppression:', error);
+      
+      const updatedPlans = plans.filter(p => p.id !== confirmDelete.id);
+      setPlans(updatedPlans);
+      
+      addDeletedPlan(confirmDelete.id);
+      
+      setMsg('✅ Parcours supprimé localement');
+    }
+    
+    setConfirmDelete(null);
+    setTimeout(() => setMsg(''), 3000);
+  };
+
+  const clearDeletedCache = () => {
+    clearDeletedPlans();
+    refreshAllPlans();
+    setMsg('✅ Cache des suppressions nettoyé');
+    setTimeout(() => setMsg(''), 3000);
+  };
+
   if (loading) return <div style={S.page}><Spinner /></div>;
 
   return (
     <div style={S.page}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
         <h1 style={S.h1}>📋 Parcours de récupération</h1>
-        <button onClick={() => setShowForm(true)} style={S.btn('linear-gradient(135deg,#667eea,#764ba2)')}>+ Nouveau parcours</button>
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <button onClick={clearDeletedCache} style={S.btn('#888', 'white')}>🧹 Nettoyer cache</button>
+          <button onClick={() => setShowForm(true)} style={S.btn('linear-gradient(135deg,#667eea,#764ba2)')}>+ Nouveau parcours</button>
+        </div>
       </div>
       <p style={S.sub}>Création de parcours post-op personnalisés selon âge, comorbidités, condition physique</p>
 
       <SuccessBox msg={msg} />
       <ErrBox msg={err} />
+
+      <ConfirmModal item={confirmDelete} onConfirm={handleDeletePlan} onCancel={() => setConfirmDelete(null)} />
 
       {showForm && (
         <Modal title="➕ Créer un parcours personnalisé" onClose={() => setShowForm(false)}>
@@ -1009,15 +1223,27 @@ function PageParcours({ user }) {
       {plans.length === 0 && <div style={{ ...S.card, textAlign: 'center', color: '#aaa', padding: '40px' }}>Aucun parcours créé — cliquez sur "+ Nouveau parcours"</div>}
       <div style={S.g2}>
         {plans.map((p, i) => (
-          <div key={p.id} style={{ ...S.card, cursor: 'pointer' }} onClick={() => setShowDetail(p)}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
-              <h3 style={{ fontSize: '15px' }}>{p.templateName}</h3>
-              <span style={S.badge('#276749', '#c6f6d5')}>{p.status}</span>
+          <div key={p.id} style={{ ...S.card, position: 'relative' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px' }}>
+              <div style={{ cursor: 'pointer', flex: 1 }} onClick={() => setShowDetail(p)}>
+                <h3 style={{ fontSize: '15px' }}>{p.templateName}</h3>
+              </div>
+              <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                <span style={S.badge('#276749', '#c6f6d5')}>{p.status}</span>
+                <button
+                  onClick={() => setConfirmDelete({ type: 'plan', id: p.id, label: p.templateName })}
+                  title="Supprimer ce parcours"
+                  style={S.btnDelete}>
+                  🗑️
+                </button>
+              </div>
             </div>
-            <div style={{ fontSize: '13px', color: '#666', marginBottom: '4px' }}>👤 Patient: {p.patientId}</div>
-            <div style={{ fontSize: '13px', color: '#666', marginBottom: '4px' }}>⏱️ {p.duration} jours · Âge: {p.patientProfile?.age} ans</div>
-            {p.adjustments?.length > 0 && <div style={{ fontSize: '12px', color: '#667eea', marginTop: '6px' }}>🔧 {p.adjustments.length} ajustement(s) personnalisé(s)</div>}
-            <div style={{ fontSize: '12px', color: '#aaa', marginTop: '6px' }}>Cliquer pour voir les phases →</div>
+            <div style={{ cursor: 'pointer' }} onClick={() => setShowDetail(p)}>
+              <div style={{ fontSize: '13px', color: '#666', marginBottom: '4px' }}>👤 Patient: {p.patientId}</div>
+              <div style={{ fontSize: '13px', color: '#666', marginBottom: '4px' }}>⏱️ {p.duration} jours · Âge: {p.patientProfile?.age} ans</div>
+              {p.adjustments?.length > 0 && <div style={{ fontSize: '12px', color: '#667eea', marginTop: '6px' }}>🔧 {p.adjustments.length} ajustement(s) personnalisé(s)</div>}
+              <div style={{ fontSize: '12px', color: '#aaa', marginTop: '6px' }}>Cliquer pour voir les phases →</div>
+            </div>
           </div>
         ))}
       </div>
@@ -1058,7 +1284,8 @@ function PageQuestionnaires({ user }) {
       if (data.success) {
         setMsg(`✅ Questionnaire envoyé au patient ${form.patientId} !`);
         setSent([...sent, data.questionnaire || { id: Date.now(), patientId: form.patientId, templateId: form.templateId, status: 'sent', sentAt: new Date().toISOString() }]);
-        setShowForm(false); setShowSend(false);
+        setShowSend(false);
+        setForm({ patientId: '', templateId: '' });
         setTimeout(() => setMsg(''), 3000);
       } else setErr(data.message);
     } catch { setErr('Erreur de connexion'); }
@@ -1108,7 +1335,7 @@ function PageQuestionnaires({ user }) {
 
       <h3 style={{ marginBottom: '12px' }}>📚 Modèles de questionnaires ({templates.length})</h3>
       <div style={S.g2}>
-        {templates.map((t, i) => (
+        {templates.map((t) => (
           <div key={t.id} style={S.card}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
               <h3 style={{ fontSize: '15px' }}>{t.name}</h3>
@@ -1159,8 +1386,12 @@ function PageExercices({ user }) {
         body: JSON.stringify({ patientId: form.patientId, exerciseIds: form.exerciseIds })
       });
       const data = await res.json();
-      if (data.success) { setMsg(`✅ Plan d'exercices assigné au patient ${form.patientId} !`); setShowCreate(false); setTimeout(() => setMsg(''), 3000); }
-      else setErr(data.message);
+      if (data.success) {
+        setMsg(`✅ Plan d'exercices assigné au patient ${form.patientId} !`);
+        setShowCreate(false);
+        setForm({ patientId: '', exerciseIds: [] });
+        setTimeout(() => setMsg(''), 3000);
+      } else setErr(data.message);
     } catch { setErr('Erreur connexion'); }
   };
 
@@ -1296,8 +1527,8 @@ function PageAlertes({ user }) {
 
   if (loading) return <div style={S.page}><Spinner /></div>;
 
-  const pending = alertes.filter(a => a.status === 'pending');
-  const acked = alertes.filter(a => a.status === 'acknowledged');
+  const pending  = alertes.filter(a => a.status === 'pending');
+  const acked    = alertes.filter(a => a.status === 'acknowledged');
   const resolved = alertes.filter(a => a.status === 'resolved');
 
   return (
@@ -1364,10 +1595,10 @@ function PageAlertes({ user }) {
 
       <div style={S.g4}>
         {[
-          { label: 'En attente', value: pending.length, color: '#e53e3e' },
-          { label: 'Prises en charge', value: acked.length, color: '#ed8936' },
-          { label: 'Résolues', value: resolved.length, color: '#48bb78' },
-          { label: 'Total', value: alertes.length, color: '#667eea' },
+          { label: 'En attente',       value: pending.length,  color: '#e53e3e' },
+          { label: 'Prises en charge', value: acked.length,    color: '#ed8936' },
+          { label: 'Résolues',         value: resolved.length, color: '#48bb78' },
+          { label: 'Total',            value: alertes.length,  color: '#667eea' },
         ].map((m, i) => (
           <div key={i} style={S.metric(m.color)}>
             <div style={{ fontSize: '28px', fontWeight: '700', color: m.color }}>{m.value}</div>
@@ -1392,7 +1623,7 @@ function PageAlertes({ user }) {
                 </div>
                 <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
                   <span style={S.badge(a.severity === 'CRITICAL' ? '#c53030' : '#c05621', a.severity === 'CRITICAL' ? '#fed7d7' : '#feebc8')}>{a.severity}</span>
-                  {a.status === 'pending' && <button onClick={() => handleAck(a.id)} style={S.btn('#ed8936')}>Prendre en charge</button>}
+                  {a.status === 'pending'      && <button onClick={() => handleAck(a.id)}     style={S.btn('#ed8936')}>Prendre en charge</button>}
                   {a.status === 'acknowledged' && <button onClick={() => handleResolve(a.id)} style={S.btn('#48bb78')}>✓ Résoudre</button>}
                 </div>
               </div>
@@ -1432,7 +1663,7 @@ function PageCoordination({ user }) {
       } catch {}
     };
     load();
-  }, []);
+  }, [myId]);
 
   const handleNote = async (e) => {
     e.preventDefault();
@@ -1562,7 +1793,7 @@ function PageCoordination({ user }) {
       {tab === 'meds' && (
         <div>
           {meds.length === 0 && <div style={{ ...S.card, textAlign: 'center', color: '#aaa', padding: '40px' }}>Aucun médicament prescrit — cliquez sur "+ Ajouter"</div>}
-          {meds.map((m, i) => (
+          {meds.map((m) => (
             <div key={m.id} style={{ ...S.card, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
                 <span style={{ fontSize: '24px' }}>💊</span>
@@ -1580,7 +1811,7 @@ function PageCoordination({ user }) {
       {tab === 'appts' && (
         <div>
           {appointments.length === 0 && <div style={{ ...S.card, textAlign: 'center', color: '#aaa', padding: '40px' }}>Aucun rendez-vous planifié — cliquez sur "+ Ajouter"</div>}
-          {appointments.map((a, i) => (
+          {appointments.map((a) => (
             <div key={a.id} style={{ ...S.card, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
                 <span style={{ fontSize: '24px' }}>📅</span>
@@ -1623,33 +1854,21 @@ export default function App() {
     return user ? <Layout>{children}</Layout> : <Navigate to="/login" />;
   }
 
-  // Routes selon le rôle
-  const isPatient = user?.role === 'patient';
-
   return (
     <Router>
       <Routes>
-        {/* Login */}
         <Route path="/login" element={user ? <Navigate to="/dashboard" /> : <PageLogin onLogin={setUser} />} />
-
-        {/* Dashboard (commun, adaptatif selon rôle) */}
-        <Route path="/dashboard" element={<PR><PageDashboard user={user} /></PR>} />
-
-        {/* Routes PATIENT uniquement */}
+        <Route path="/dashboard"          element={<PR><PageDashboard user={user} /></PR>} />
         <Route path="/mon-parcours"       element={<PR><PageMonParcours user={user} /></PR>} />
         <Route path="/mes-questionnaires" element={<PR><PageMesQuestionnaires user={user} /></PR>} />
         <Route path="/mes-exercices"      element={<PR><PageMesExercices user={user} /></PR>} />
-
-        {/* Routes PROFESSIONNELS uniquement */}
-        <Route path="/parcours"       element={<PR><PageParcours user={user} /></PR>} />
-        <Route path="/questionnaires" element={<PR><PageQuestionnaires user={user} /></PR>} />
-        <Route path="/exercices"      element={<PR><PageExercices user={user} /></PR>} />
-        <Route path="/alertes"        element={<PR><PageAlertes user={user} /></PR>} />
-        <Route path="/coordination"   element={<PR><PageCoordination user={user} /></PR>} />
-
-        {/* Redirect */}
-        <Route path="/" element={<Navigate to="/login" />} />
-        <Route path="*" element={<Navigate to="/dashboard" />} />
+        <Route path="/parcours"           element={<PR><PageParcours user={user} /></PR>} />
+        <Route path="/questionnaires"     element={<PR><PageQuestionnaires user={user} /></PR>} />
+        <Route path="/exercices"          element={<PR><PageExercices user={user} /></PR>} />
+        <Route path="/alertes"            element={<PR><PageAlertes user={user} /></PR>} />
+        <Route path="/coordination"       element={<PR><PageCoordination user={user} /></PR>} />
+        <Route path="/"  element={<Navigate to="/login" />} />
+        <Route path="*"  element={<Navigate to="/dashboard" />} />
       </Routes>
     </Router>
   );
