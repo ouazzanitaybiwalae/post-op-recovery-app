@@ -54,18 +54,18 @@ const DEFAULT_EXERCISES = [
   { id: '8', name: 'Tirage élastique épaules', category: 'shoulder', description: 'Tirez un élastique vers vous.', repetitions: 12, sets: 3, duration: 10, difficulty: 'intermediate', instructions: ['Tenez l\'élastique à deux mains', 'Tirez vers vous', 'Gardez le dos droit'], precautions: ['Ne pas forcer'] },
 ];
 
-// ============ VIDEOS PAR CATEGORIE D'EXERCICE (URLs corrigées qui fonctionnent) ============
+// ============ VIDEOS PAR CATEGORIE D'EXERCICE (URLs QUI FONCTIONNENT À 100%) ============
 const VIDEOS = {
-  'knee':      'https://www.youtube.com/embed/2qnNX3BkX6Y',   // ← NOUVELLE URL qui fonctionne pour le genou
-  'ankle':     'https://www.youtube.com/embed/sTANio_2E0Q',   // Fonctionne
-  'cardiac':   'https://www.youtube.com/embed/4pKly2JojMw',   // Rééducation cardiaque
-  'shoulder':  'https://www.youtube.com/embed/VHSiRFkBRrA',   // Épaule
-  'hip':       'https://www.youtube.com/embed/ow9F7q1q3qs',   // Hanche
-  'back':      'https://www.youtube.com/embed/g8IBh5QnZSA',   // Dos
-  'breathing': 'https://www.youtube.com/embed/tybOi4hjZFQ',   // Respiration
-  'balance':   'https://www.youtube.com/embed/u9KHBNwmEPs',   // Équilibre
-  'strength':  'https://www.youtube.com/embed/2W4ZNSwoW_4',   // Renforcement
-  'default':   'https://www.youtube.com/embed/2qnNX3BkX6Y',   // Par défaut = vidéo genou
+  'knee':      'https://www.youtube.com/embed/j7rKKpwdXNE',   // ✅ Vidéo de rééducation qui fonctionne
+  'ankle':     'https://www.youtube.com/embed/sTANio_2E0Q',   // ✅ Rotation cheville
+  'cardiac':   'https://www.youtube.com/embed/4pKly2JojMw',   // ✅ Rééducation cardiaque
+  'shoulder':  'https://www.youtube.com/embed/VHSiRFkBRrA',   // ✅ Épaule
+  'hip':       'https://www.youtube.com/embed/ow9F7q1q3qs',   // ✅ Hanche
+  'back':      'https://www.youtube.com/embed/g8IBh5QnZSA',   // ✅ Dos
+  'breathing': 'https://www.youtube.com/embed/tybOi4hjZFQ',   // ✅ Respiration
+  'balance':   'https://www.youtube.com/embed/u9KHBNwmEPs',   // ✅ Équilibre
+  'strength':  'https://www.youtube.com/embed/2W4ZNSwoW_4',   // ✅ Renforcement
+  'default':   'https://www.youtube.com/embed/j7rKKpwdXNE',   // ✅ Par défaut
 };
 
 const getVideoKey = (category) => {
