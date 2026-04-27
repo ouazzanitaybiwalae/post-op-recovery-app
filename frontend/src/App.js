@@ -24,32 +24,60 @@ const addDeletedPlan = (id) => {
 };
 const clearDeletedPlans = () => localStorage.removeItem('deleted_plans');
 
-const ROLES = ['patient', 'chirurgien', 'kinesitherapeute', 'infirmier', 'coordinateur'];
+// Gestion des sessions d'exercices (localStorage)
+const getExerciseSessions = () => JSON.parse(localStorage.getItem('exercise_sessions') || '[]');
+const saveExerciseSessions = (sessions) => localStorage.setItem('exercise_sessions', JSON.stringify(sessions));
 
-// ============ VIDEOS PAR CATEGORIE D'EXERCICE ============
+const addExerciseSession = (patientId, exerciseIds) => {
+  const sessions = getExerciseSessions();
+  const newSession = {
+    id: Date.now().toString(),
+    patientId: patientId,
+    exerciseIds: exerciseIds,
+    createdAt: new Date().toISOString(),
+    status: 'active'
+  };
+  sessions.push(newSession);
+  saveExerciseSessions(sessions);
+  return newSession;
+};
+
+// Exercices par défaut pour le mode démo
+const DEFAULT_EXERCISES = [
+  { id: '1', name: 'Flexion du genou', category: 'knee', description: 'Assis sur une chaise, pliez lentement le genou.', repetitions: 10, sets: 3, duration: 10, difficulty: 'beginner', instructions: ['Asseyez-vous sur une chaise', 'Gardez le dos droit', 'Pliez lentement le genou', 'Maintenez 5 secondes', 'Revenez à la position initiale'], precautions: ['Ne forcez pas', 'Arrêtez en cas de douleur'] },
+  { id: '2', name: 'Extension du genou', category: 'knee', description: 'Assis, tendez la jambe.', repetitions: 10, sets: 3, duration: 10, difficulty: 'beginner', instructions: ['Tendez la jambe', 'Maintenez 3 secondes', 'Repliez lentement'], precautions: ['Mouvements contrôlés'] },
+  { id: '3', name: 'Rotation de la cheville', category: 'ankle', description: 'Rotation de la cheville.', repetitions: 15, sets: 2, duration: 5, difficulty: 'beginner', instructions: ['Faites des cercles avec le pied', 'Dans un sens puis dans l\'autre'], precautions: ['Mouvements lents'] },
+  { id: '4', name: 'Marche contrôlée', category: 'balance', description: 'Marche lente et contrôlée.', repetitions: 5, sets: 1, duration: 15, difficulty: 'intermediate', instructions: ['Marchez lentement', 'Regardez droit devant'], precautions: ['Utilisez une aide si nécessaire'] },
+  { id: '5', name: 'Respiration profonde', category: 'breathing', description: 'Exercice de respiration.', repetitions: 10, sets: 1, duration: 5, difficulty: 'beginner', instructions: ['Inspirez profondément', 'Expirez lentement'], precautions: [] },
+  { id: '6', name: 'Élévation de la jambe', category: 'strength', description: 'Allongé, levez la jambe tendue.', repetitions: 10, sets: 2, duration: 8, difficulty: 'beginner', instructions: ['Allongez-vous sur le dos', 'Levez une jambe tendue', 'Maintenez 2 secondes', 'Redescendez'], precautions: ['Douleur au dos = arrêter'] },
+  { id: '7', name: 'Abduction de hanche', category: 'hip', description: 'Allongé sur le côté, levez la jambe.', repetitions: 12, sets: 2, duration: 8, difficulty: 'beginner', instructions: ['Allongez-vous sur le côté', 'Levez la jambe du haut', 'Maintenez 1 seconde', 'Redescendez'], precautions: [] },
+  { id: '8', name: 'Tirage élastique épaules', category: 'shoulder', description: 'Tirez un élastique vers vous.', repetitions: 12, sets: 3, duration: 10, difficulty: 'intermediate', instructions: ['Tenez l\'élastique à deux mains', 'Tirez vers vous', 'Gardez le dos droit'], precautions: ['Ne pas forcer'] },
+];
+
+// ============ VIDEOS PAR CATEGORIE D'EXERCICE (URLs corrigées qui fonctionnent) ============
 const VIDEOS = {
-  'knee':      'https://www.youtube.com/embed/2XaKMBjdEo0',
-  'ankle':     'https://www.youtube.com/embed/sTANio_2E0Q',
-  'cardiac':   'https://www.youtube.com/embed/4pKly2JojMw',
-  'shoulder':  'https://www.youtube.com/embed/VHSiRFkBRrA',
-  'hip':       'https://www.youtube.com/embed/ow9F7q1q3qs',
-  'back':      'https://www.youtube.com/embed/g8IBh5QnZSA',
-  'breathing': 'https://www.youtube.com/embed/tybOi4hjZFQ',
-  'balance':   'https://www.youtube.com/embed/u9KHBNwmEPs',
-  'strength':  'https://www.youtube.com/embed/2W4ZNSwoW_4',
-  'default':   'https://www.youtube.com/embed/j7rKKpwdXNE',
+  'knee':      'https://www.youtube.com/embed/2qnNX3BkX6Y',   // ← NOUVELLE URL qui fonctionne pour le genou
+  'ankle':     'https://www.youtube.com/embed/sTANio_2E0Q',   // Fonctionne
+  'cardiac':   'https://www.youtube.com/embed/4pKly2JojMw',   // Rééducation cardiaque
+  'shoulder':  'https://www.youtube.com/embed/VHSiRFkBRrA',   // Épaule
+  'hip':       'https://www.youtube.com/embed/ow9F7q1q3qs',   // Hanche
+  'back':      'https://www.youtube.com/embed/g8IBh5QnZSA',   // Dos
+  'breathing': 'https://www.youtube.com/embed/tybOi4hjZFQ',   // Respiration
+  'balance':   'https://www.youtube.com/embed/u9KHBNwmEPs',   // Équilibre
+  'strength':  'https://www.youtube.com/embed/2W4ZNSwoW_4',   // Renforcement
+  'default':   'https://www.youtube.com/embed/2qnNX3BkX6Y',   // Par défaut = vidéo genou
 };
 
 const getVideoKey = (category) => {
   if (!category) return 'default';
   const cat = category.toLowerCase();
-  if (cat.includes('knee') || cat.includes('genou'))     return 'knee';
-  if (cat.includes('ankle') || cat.includes('cheville'))  return 'ankle';
+  if (cat.includes('knee') || cat.includes('genou')) return 'knee';
+  if (cat.includes('ankle') || cat.includes('cheville')) return 'ankle';
   if (cat.includes('cardiac') || cat.includes('coeur') || cat.includes('cardio')) return 'cardiac';
   if (cat.includes('shoulder') || cat.includes('epaule')) return 'shoulder';
-  if (cat.includes('hip') || cat.includes('hanche'))     return 'hip';
-  if (cat.includes('back') || cat.includes('dos'))       return 'back';
-  if (cat.includes('breath') || cat.includes('respir'))  return 'breathing';
+  if (cat.includes('hip') || cat.includes('hanche')) return 'hip';
+  if (cat.includes('back') || cat.includes('dos')) return 'back';
+  if (cat.includes('breath') || cat.includes('respir')) return 'breathing';
   if (cat.includes('balance') || cat.includes('equilib')) return 'balance';
   if (cat.includes('strength') || cat.includes('renfor')) return 'strength';
   return 'default';
@@ -516,7 +544,18 @@ function PageDashboardPatient({ user }) {
         const monPlan = allPlans.find(p => p.patientId === user.id || p.patientId === `${user.prenom} ${user.nom}`);
         setMyPlan(monPlan || null);
         setMyQuestionnaires(qRes.status === 'fulfilled' ? (qRes.value.patientQuestionnaires || []) : []);
-        setMyExercices(eRes.status === 'fulfilled' ? (eRes.value.sessions || eRes.value.exerciseSessions || []) : []);
+        
+        // Charger les sessions d'exercices du patient
+        let sessions = [];
+        if (eRes.status === 'fulfilled' && eRes.value.sessions) {
+          sessions = eRes.value.sessions || eRes.value.exerciseSessions || [];
+        }
+        if (sessions.length === 0) {
+          const allSessions = getExerciseSessions();
+          sessions = allSessions.filter(s => s.patientId === user.id || s.patientId === `${user.prenom} ${user.nom}`);
+        }
+        setMyExercices(sessions);
+        
       } catch (error) {
         console.error('Erreur chargement dashboard patient:', error);
       }
@@ -850,7 +889,7 @@ function PageMesQuestionnaires({ user }) {
   );
 }
 
-// ============ MES EXERCICES (PAGE PATIENT) ============
+// ============ MES EXERCICES (PAGE PATIENT) - CORRIGÉ ============
 function PageMesExercices({ user }) {
   const [sessions, setSessions] = useState([]);
   const [library, setLibrary] = useState([]);
@@ -858,22 +897,46 @@ function PageMesExercices({ user }) {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState('');
 
+  // Fonction pour charger les sessions du patient depuis localStorage
+  const loadPatientSessions = () => {
+    const allSessions = getExerciseSessions();
+    const patientSessions = allSessions.filter(s => 
+      s.patientId === user.id || 
+      s.patientId === `${user.prenom} ${user.nom}` ||
+      s.patientId === user.prenom
+    );
+    setSessions(patientSessions);
+  };
+
   useEffect(() => {
     const load = async () => {
       try {
-        const [lRes, sRes] = await Promise.allSettled([
-          fetch(`${API.exercise}/api/exercise/library`).then(r => r.json()),
-          fetch(`${API.exercise}/api/exercise/session/patient/${user.id}`).then(r => r.json()),
-        ]);
-        const lib = lRes.status === 'fulfilled' ? (lRes.value.exercises || []) : [];
-        const ses = sRes.status === 'fulfilled' ? (sRes.value.sessions || sRes.value.exerciseSessions || []) : [];
+        let lib = [];
+        try {
+          const lRes = await fetch(`${API.exercise}/api/exercise/library`);
+          if (lRes.ok) {
+            const lData = await lRes.json();
+            lib = lData.exercises || [];
+          }
+        } catch (e) {
+          console.warn('API exercices indisponible, utilisation mode démo');
+        }
+        
+        if (lib.length === 0) {
+          lib = DEFAULT_EXERCISES;
+        }
         setLibrary(lib);
-        setSessions(ses);
-      } catch { setErr('Erreur de connexion au service exercices'); }
+        loadPatientSessions();
+        
+      } catch (err) {
+        setErr('Erreur de chargement des exercices');
+        console.error(err);
+        setLibrary(DEFAULT_EXERCISES);
+      }
       setLoading(false);
     };
     load();
-  }, [user.id]);
+  }, [user.id, user.prenom, user.nom]);
 
   const getExercicesDeSession = (session) => {
     if (!session.exerciseIds) return [];
@@ -891,12 +954,16 @@ function PageMesExercices({ user }) {
 
       {videoModal && (
         <Modal title={`▶️ ${videoModal.name}`} onClose={() => setVideoModal(null)}>
-          <iframe
-            width="100%" height="300"
-            src={VIDEOS[getVideoKey(videoModal.category)] || VIDEOS.default}
-            title={videoModal.name} frameBorder="0" allowFullScreen
-            style={{ borderRadius: '8px' }}
-          />
+          <div style={{ position: 'relative', paddingBottom: '56.25%', height: 0, overflow: 'hidden', borderRadius: '8px' }}>
+            <iframe
+              style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}
+              src={VIDEOS[getVideoKey(videoModal.category)] || VIDEOS.default}
+              title={videoModal.name}
+              frameBorder="0"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+            />
+          </div>
           <div style={{ marginTop: '16px' }}>
             <div style={{ display: 'flex', gap: '8px', marginBottom: '12px', flexWrap: 'wrap' }}>
               <span style={S.badge('#2b6cb0', '#bee3f8')}>{videoModal.category}</span>
@@ -904,7 +971,7 @@ function PageMesExercices({ user }) {
               <span style={S.badge('#276749', '#c6f6d5')}>⏱️ {videoModal.duration} min</span>
               <span style={S.badge(videoModal.difficulty === 'beginner' ? '#276749' : videoModal.difficulty === 'intermediate' ? '#c05621' : '#c53030',
                 videoModal.difficulty === 'beginner' ? '#c6f6d5' : videoModal.difficulty === 'intermediate' ? '#feebc8' : '#fed7d7')}>
-                {videoModal.difficulty}
+                {videoModal.difficulty === 'beginner' ? 'Débutant' : videoModal.difficulty === 'intermediate' ? 'Intermédiaire' : 'Avancé'}
               </span>
             </div>
             <div style={{ fontWeight: '600', marginBottom: '8px' }}>📋 Instructions :</div>
@@ -914,23 +981,48 @@ function PageMesExercices({ user }) {
                 <span>{ins}</span>
               </div>
             ))}
-            {videoModal.precautions?.length > 0 && (
+            {videoModal.precautions?.length > 0 && videoModal.precautions[0] !== '' && (
               <div style={{ marginTop: '12px', padding: '12px', background: '#feebc8', borderRadius: '8px' }}>
                 <strong style={{ color: '#c05621', fontSize: '13px' }}>⚠️ Précautions importantes :</strong>
-                {videoModal.precautions.map((p, i) => <div key={i} style={{ fontSize: '12px', color: '#c05621', marginTop: '4px' }}>• {p}</div>)}
+                {videoModal.precautions.map((p, i) => p && <div key={i} style={{ fontSize: '12px', color: '#c05621', marginTop: '4px' }}>• {p}</div>)}
               </div>
             )}
           </div>
         </Modal>
       )}
 
-      {sessions.length === 0 ? (
+      {/* Afficher les sessions assignées par l'infirmier */}
+      {sessions.length > 0 ? (
+        sessions.map((session, si) => {
+          const exercicesDeSession = getExercicesDeSession(session);
+          return (
+            <div key={session.id} style={{ ...S.card, borderLeft: '4px solid #48bb78', marginBottom: '24px' }}>
+              <h3 style={{ marginBottom: '12px' }}>💪 Plan d'exercices #{si + 1}</h3>
+              <div style={{ fontSize: '13px', color: '#888', marginBottom: '16px' }}>
+                Prescrit le {new Date(session.createdAt).toLocaleDateString('fr-FR')} · {exercicesDeSession.length} exercice(s)
+              </div>
+              {exercicesDeSession.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '20px', color: '#aaa' }}>
+                  ⚠️ Chargement des exercices en cours...
+                </div>
+              ) : (
+                <div style={S.g2}>
+                  {exercicesDeSession.map((ex) => (
+                    <ExerciceCard key={ex.id} ex={ex} onVideo={() => setVideoModal(ex)} />
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })
+      ) : (
         <div>
           <div style={{ ...S.card, textAlign: 'center', padding: '40px', color: '#aaa', marginBottom: '24px' }}>
             <div style={{ fontSize: '48px', marginBottom: '12px' }}>💪</div>
             <div style={{ fontSize: '16px', marginBottom: '8px' }}>Aucun plan d'exercices assigné pour le moment</div>
             <div style={{ fontSize: '13px' }}>Votre kinésithérapeute ou infirmier(e) vous assignera des exercices adaptés</div>
           </div>
+          
           <h3 style={{ marginBottom: '12px' }}>📚 Bibliothèque d'exercices disponibles</h3>
           <p style={{ fontSize: '13px', color: '#888', marginBottom: '16px' }}>
             Découvrez les exercices disponibles. Votre équipe médicale sélectionnera ceux adaptés à votre situation.
@@ -941,20 +1033,6 @@ function PageMesExercices({ user }) {
             ))}
           </div>
         </div>
-      ) : (
-        sessions.map((session, si) => (
-          <div key={session.id} style={{ ...S.card, borderLeft: '4px solid #48bb78' }}>
-            <h3 style={{ marginBottom: '12px' }}>💪 Plan d'exercices #{si + 1}</h3>
-            <div style={{ fontSize: '13px', color: '#888', marginBottom: '16px' }}>
-              Prescrit le {new Date(session.createdAt).toLocaleDateString('fr-FR')} · {(session.exerciseIds || []).length} exercice(s)
-            </div>
-            <div style={S.g2}>
-              {getExercicesDeSession(session).map((ex) => (
-                <ExerciceCard key={ex.id} ex={ex} onVideo={() => setVideoModal(ex)} />
-              ))}
-            </div>
-          </div>
-        ))
       )}
     </div>
   );
@@ -974,7 +1052,7 @@ function ExerciceCard({ ex, onVideo }) {
         <span style={S.badge('#276749', '#c6f6d5')}>⏱️ {ex.duration} min</span>
         <span style={S.badge(ex.difficulty === 'beginner' ? '#276749' : ex.difficulty === 'intermediate' ? '#c05621' : '#c53030',
           ex.difficulty === 'beginner' ? '#c6f6d5' : ex.difficulty === 'intermediate' ? '#feebc8' : '#fed7d7')}>
-          {ex.difficulty}
+          {ex.difficulty === 'beginner' ? 'Débutant' : ex.difficulty === 'intermediate' ? 'Intermédiaire' : 'Avancé'}
         </span>
       </div>
       <button onClick={onVideo}
@@ -1360,7 +1438,7 @@ function PageQuestionnaires({ user }) {
   );
 }
 
-// ============ EXERCICES (PAGE PRO) ============
+// ============ EXERCICES (PAGE PRO) - CORRIGÉ ============
 function PageExercices({ user }) {
   const [library, setLibrary] = useState([]);
   const [showCreate, setShowCreate] = useState(false);
@@ -1369,33 +1447,86 @@ function PageExercices({ user }) {
   const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState('');
   const [err, setErr] = useState('');
+  const [existingSessions, setExistingSessions] = useState([]);
   const patients = getUsers().filter(u => u.role === 'patient');
 
+  // Fonction pour rafraîchir l'affichage des sessions
+  const refreshSessions = () => {
+    const sessions = getExerciseSessions();
+    setExistingSessions([...sessions]);
+  };
+
   useEffect(() => {
-    fetch(`${API.exercise}/api/exercise/library`).then(r => r.json())
-      .then(data => setLibrary(data.exercises || []))
-      .catch(() => setErr('Erreur chargement'))
-      .finally(() => setLoading(false));
+    const load = async () => {
+      try {
+        let lib = [];
+        try {
+          const lRes = await fetch(`${API.exercise}/api/exercise/library`);
+          if (lRes.ok) {
+            const lData = await lRes.json();
+            lib = lData.exercises || [];
+          }
+        } catch (e) {
+          console.warn('API exercices indisponible, utilisation mode démo');
+        }
+        
+        if (lib.length === 0) {
+          lib = DEFAULT_EXERCISES;
+        }
+        setLibrary(lib);
+        refreshSessions();
+        
+      } catch (err) {
+        setErr('Erreur chargement');
+        setLibrary(DEFAULT_EXERCISES);
+      }
+      setLoading(false);
+    };
+    load();
   }, []);
 
-  const handleCreate = async (e) => {
+  const handleCreate = (e) => {
     e.preventDefault();
-    try {
-      const res = await fetch(`${API.exercise}/api/exercise/plan/create`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ patientId: form.patientId, exerciseIds: form.exerciseIds })
-      });
-      const data = await res.json();
-      if (data.success) {
-        setMsg(`✅ Plan d'exercices assigné au patient ${form.patientId} !`);
-        setShowCreate(false);
-        setForm({ patientId: '', exerciseIds: [] });
-        setTimeout(() => setMsg(''), 3000);
-      } else setErr(data.message);
-    } catch { setErr('Erreur connexion'); }
+    
+    if (form.exerciseIds.length === 0) {
+      setErr('Veuillez sélectionner au moins un exercice');
+      return;
+    }
+    
+    if (!form.patientId) {
+      setErr('Veuillez sélectionner un patient');
+      return;
+    }
+    
+    const selectedPatient = patients.find(p => p.id === form.patientId);
+    const patientName = selectedPatient ? `${selectedPatient.prenom} ${selectedPatient.nom}` : form.patientId;
+    
+    // Sauvegarde IMMÉDIATE dans localStorage (sans appel API)
+    addExerciseSession(form.patientId, form.exerciseIds);
+    setMsg(`✅ Plan d'exercices assigné à ${patientName} !`);
+    
+    // Rafraîchir l'affichage
+    refreshSessions();
+    
+    // Réinitialiser le formulaire
+    setShowCreate(false);
+    setForm({ patientId: '', exerciseIds: [] });
+    
+    setTimeout(() => setMsg(''), 3000);
   };
 
   if (loading) return <div style={S.page}><Spinner /></div>;
+
+  // Grouper les sessions par patient
+  const sessionsByPatient = {};
+  existingSessions.forEach(session => {
+    const patient = patients.find(p => p.id === session.patientId);
+    const patientName = patient ? `${patient.prenom} ${patient.nom}` : session.patientId;
+    if (!sessionsByPatient[patientName]) {
+      sessionsByPatient[patientName] = [];
+    }
+    sessionsByPatient[patientName].push(session);
+  });
 
   return (
     <div style={S.page}>
@@ -1416,7 +1547,7 @@ function PageExercices({ user }) {
               {patients.length > 0 ? (
                 <select style={S.inp} required value={form.patientId} onChange={e => setForm({ ...form, patientId: e.target.value })}>
                   <option value="">Sélectionner un patient...</option>
-                  {patients.map(p => <option key={p.id} value={p.id}>{p.prenom} {p.nom}</option>)}
+                  {patients.map(p => <option key={p.id} value={p.id}>{p.prenom} {p.nom} (ID: {p.id})</option>)}
                 </select>
               ) : (
                 <input style={S.inp} required value={form.patientId} onChange={e => setForm({ ...form, patientId: e.target.value })} placeholder="ID du patient" />
@@ -1425,17 +1556,17 @@ function PageExercices({ user }) {
             <div style={S.fr}>
               <label style={S.lbl}>Sélectionner les exercices *</label>
               {library.map(ex => (
-                <label key={ex.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px', marginBottom: '6px', background: form.exerciseIds.includes(ex.id) ? '#f0f4ff' : '#f7f7fa', border: `1px solid ${form.exerciseIds.includes(ex.id) ? '#667eea' : 'transparent'}`, borderRadius: '8px', cursor: 'pointer' }}>
+                <label key={ex.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px', marginBottom: '6px', background: form.exerciseIds.includes(ex.id) ? '#f0f4ff' : '#f7f7fa', borderRadius: '8px', cursor: 'pointer' }}>
                   <input type="checkbox" checked={form.exerciseIds.includes(ex.id)}
                     onChange={() => setForm({ ...form, exerciseIds: form.exerciseIds.includes(ex.id) ? form.exerciseIds.filter(id => id !== ex.id) : [...form.exerciseIds, ex.id] })} />
                   <div>
                     <div style={{ fontWeight: '600', fontSize: '13px' }}>{ex.name}</div>
-                    <div style={{ fontSize: '11px', color: '#888' }}>{ex.category} · {ex.repetitions} rép × {ex.sets} séries · {ex.duration} min · {ex.difficulty}</div>
+                    <div style={{ fontSize: '11px', color: '#888' }}>{ex.category} · {ex.repetitions} rép × {ex.sets} séries · {ex.duration} min</div>
                   </div>
                 </label>
               ))}
             </div>
-            <div style={{ display: 'flex', gap: '8px' }}>
+            <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
               <button type="submit" disabled={form.exerciseIds.length === 0}
                 style={{ ...S.btn(form.exerciseIds.length > 0 ? 'linear-gradient(135deg,#667eea,#764ba2)' : '#ccc'), opacity: form.exerciseIds.length === 0 ? 0.6 : 1 }}>
                 ✓ Assigner le plan ({form.exerciseIds.length} exercice(s))
@@ -1448,9 +1579,16 @@ function PageExercices({ user }) {
 
       {videoModal && (
         <Modal title={`▶️ ${videoModal.name}`} onClose={() => setVideoModal(null)}>
-          <iframe width="100%" height="300"
-            src={VIDEOS[getVideoKey(videoModal.category)] || VIDEOS.default}
-            title={videoModal.name} frameBorder="0" allowFullScreen style={{ borderRadius: '8px' }} />
+          <div style={{ position: 'relative', paddingBottom: '56.25%', height: 0, overflow: 'hidden', borderRadius: '8px' }}>
+            <iframe
+              style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}
+              src={VIDEOS[getVideoKey(videoModal.category)] || VIDEOS.default}
+              title={videoModal.name}
+              frameBorder="0"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+            />
+          </div>
           <div style={{ marginTop: '16px' }}>
             <div style={{ fontWeight: '600', marginBottom: '8px' }}>📋 Instructions :</div>
             {videoModal.instructions?.map((ins, i) => (
@@ -1458,12 +1596,6 @@ function PageExercices({ user }) {
                 <span style={{ color: '#667eea', fontWeight: '700' }}>{i + 1}.</span><span>{ins}</span>
               </div>
             ))}
-            {videoModal.precautions?.length > 0 && (
-              <div style={{ marginTop: '12px', padding: '10px', background: '#feebc8', borderRadius: '8px' }}>
-                <strong style={{ color: '#c05621', fontSize: '13px' }}>⚠️ Précautions :</strong>
-                {videoModal.precautions.map((p, i) => <div key={i} style={{ fontSize: '12px', color: '#c05621', marginTop: '4px' }}>• {p}</div>)}
-              </div>
-            )}
           </div>
         </Modal>
       )}
@@ -1474,164 +1606,146 @@ function PageExercices({ user }) {
           <ExerciceCard key={ex.id} ex={ex} onVideo={() => setVideoModal(ex)} />
         ))}
       </div>
+
+      {/* Liste des sessions assignées */}
+      <h3 style={{ marginBottom: '12px', marginTop: '24px' }}>📋 Plans d'exercices assignés ({existingSessions.length})</h3>
+      {existingSessions.length === 0 && (
+        <div style={{ ...S.card, textAlign: 'center', color: '#aaa', padding: '20px' }}>
+          Aucun plan d'exercices assigné pour le moment. Cliquez sur "+ Assigner à un patient" pour en créer.
+        </div>
+      )}
+      {Object.entries(sessionsByPatient).map(([patientName, patientSessions]) => (
+        <div key={patientName} style={{ ...S.card, marginBottom: '16px', background: '#f5f5f5' }}>
+          <h4 style={{ marginBottom: '12px', color: '#667eea' }}>👤 {patientName}</h4>
+          {patientSessions.map(session => (
+            <div key={session.id} style={{ background: 'white', padding: '12px', borderRadius: '8px', marginBottom: '10px', border: '1px solid #e0e0e0' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+                <div>
+                  <strong>📅 Créé le:</strong> {new Date(session.createdAt).toLocaleDateString('fr-FR')} à {new Date(session.createdAt).toLocaleTimeString('fr-FR')}<br/>
+                  <strong>💪 Exercices:</strong> {session.exerciseIds.length} exercice(s)
+                </div>
+                <span style={S.badge('#276749', '#c6f6d5')}>{session.status === 'active' ? 'Actif' : session.status}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      ))}
     </div>
   );
 }
 
-// ============ ALERTES ============
+// ============ ALERTES (PAGE PRO) ============
 function PageAlertes({ user }) {
-  const [alertes, setAlertes] = useState([]);
+  const [alertes, setAlertes] = useState(() => {
+    const saved = localStorage.getItem('local_alerts');
+    return saved ? JSON.parse(saved) : [];
+  });
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ patientId: '', source: 'manual', anomalies: [{ type: '', severity: 'HIGH', value: '' }] });
-  const [loading, setLoading] = useState(true);
+  const [form, setForm] = useState({ patientId: '', anomalies: [{ type: '', severity: 'HIGH', value: '' }] });
   const [msg, setMsg] = useState('');
-  const [err, setErr] = useState('');
+  const [filter, setFilter] = useState('all');
+  const [priorityFilter, setPriorityFilter] = useState('');
   const patients = getUsers().filter(u => u.role === 'patient');
 
   useEffect(() => {
-    fetch(`${API.alert}/api/alert`).then(r => r.json())
-      .then(data => setAlertes(data.alerts || []))
-      .catch(() => setErr('Erreur chargement alertes'))
-      .finally(() => setLoading(false));
-  }, []);
+    localStorage.setItem('local_alerts', JSON.stringify(alertes));
+  }, [alertes]);
 
-  const handleCreate = async (e) => {
+  const handleCreate = (e) => {
     e.preventDefault();
-    try {
-      const res = await fetch(`${API.alert}/api/alert/create`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ patientId: form.patientId, source: form.source, anomalies: form.anomalies.filter(a => a.type) })
-      });
-      const data = await res.json();
-      if (data.success) {
-        setAlertes([data.alert, ...alertes]);
-        setMsg('✅ Alerte créée !'); setShowForm(false);
-        setTimeout(() => setMsg(''), 3000);
-      } else setErr(data.message);
-    } catch { setErr('Erreur connexion'); }
+    
+    if (!form.patientId) {
+      setMsg('❌ Veuillez sélectionner un patient');
+      setTimeout(() => setMsg(''), 3000);
+      return;
+    }
+    
+    const selectedPatient = patients.find(p => p.id === form.patientId);
+    const anomaly = form.anomalies[0];
+    
+    const newAlert = {
+      id: Date.now().toString(),
+      patientId: form.patientId,
+      patient_name: selectedPatient ? `${selectedPatient.prenom} ${selectedPatient.nom}` : form.patientId,
+      title: `Alerte ${anomaly.type || 'médicale'}`,
+      message: `${anomaly.type || 'Anomalie'} détectée${anomaly.value ? ` : ${anomaly.value}` : ''}`,
+      priority: anomaly.severity === 'HIGH' || anomaly.severity === 'CRITICAL' ? 'high' : 
+                anomaly.severity === 'MEDIUM' ? 'medium' : 'low',
+      is_read: false,
+      created_at: new Date().toISOString(),
+    };
+    setAlertes([newAlert, ...alertes]);
+    setMsg('✅ Alerte créée !');
+    setShowForm(false);
+    setForm({ patientId: '', anomalies: [{ type: '', severity: 'HIGH', value: '' }] });
+    setTimeout(() => setMsg(''), 3000);
   };
 
-  const handleAck = async (id) => {
-    try {
-      await fetch(`${API.alert}/api/alert/${id}/acknowledge`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ acknowledgedBy: user?.id }) });
-      setAlertes(alertes.map(a => a.id === id ? { ...a, status: 'acknowledged' } : a));
-    } catch { setErr('Erreur'); }
+  const handleMarkAsRead = (id) => {
+    setAlertes(alertes.map(a => a.id === id ? { ...a, is_read: true } : a));
+    setMsg('✅ Marquée comme lue');
+    setTimeout(() => setMsg(''), 2000);
   };
 
-  const handleResolve = async (id) => {
-    try {
-      await fetch(`${API.alert}/api/alert/${id}/resolve`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ resolvedBy: user?.id }) });
-      setAlertes(alertes.map(a => a.id === id ? { ...a, status: 'resolved' } : a));
-    } catch { setErr('Erreur'); }
+  const handleDelete = (id) => {
+    if (window.confirm('Supprimer cette alerte ?')) {
+      setAlertes(alertes.filter(a => a.id !== id));
+      setMsg('✅ Alerte supprimée');
+      setTimeout(() => setMsg(''), 2000);
+    }
   };
 
-  if (loading) return <div style={S.page}><Spinner /></div>;
+  const unreadCount = alertes.filter(a => !a.is_read).length;
+  const filteredAlertes = alertes.filter(alert => {
+    const matchesReadStatus = filter === 'all' || (filter === 'read' && alert.is_read) || (filter === 'unread' && !alert.is_read);
+    const matchesPriority = !priorityFilter || alert.priority === priorityFilter;
+    return matchesReadStatus && matchesPriority;
+  });
 
-  const pending  = alertes.filter(a => a.status === 'pending');
-  const acked    = alertes.filter(a => a.status === 'acknowledged');
-  const resolved = alertes.filter(a => a.status === 'resolved');
+  const getPriorityIcon = (p) => p === 'high' ? '🔴' : p === 'medium' ? '🟡' : '🟢';
+  const getPriorityColor = (p) => p === 'high' ? '#e53e3e' : p === 'medium' ? '#ed8936' : '#48bb78';
+  const formatDate = (d) => { if (!d) return ''; const date = new Date(d); const now = new Date(); const diff = Math.floor((now - date) / 60000); if (diff < 1) return 'À l\'instant'; if (diff < 60) return `Il y a ${diff} min`; if (diff < 1440) return `Il y a ${Math.floor(diff / 60)}h`; return date.toLocaleDateString('fr-FR'); };
 
   return (
     <div style={S.page}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-        <h1 style={S.h1}>🚨 Détection des complications</h1>
-        <button onClick={() => setShowForm(true)} style={S.btn('#e53e3e')}>+ Signaler une complication</button>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', flexWrap: 'wrap', gap: '10px' }}>
+        <div><h1 style={S.h1}>🚨 Alertes</h1></div>
+        <div><button onClick={() => setShowForm(true)} style={S.btn('#e53e3e')}>+ Nouvelle alerte</button></div>
       </div>
-      <p style={S.sub}>Douleur, fièvre, saignement — détection automatique via questionnaires + signalement manuel</p>
-
-      <SuccessBox msg={msg} />
-      <ErrBox msg={err} />
-
+      {msg && <SuccessBox msg={msg} />}
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', flexWrap: 'wrap' }}>
+        {[{ key: 'all', label: `Toutes (${alertes.length})` }, { key: 'unread', label: `Non lues (${unreadCount})` }, { key: 'read', label: `Lues (${alertes.length - unreadCount})` }].map(({ key, label }) => (<button key={key} onClick={() => setFilter(key)} style={{ ...S.btn(filter === key ? '#667eea' : '#f0f0f0', filter === key ? 'white' : '#555'), padding: '8px 16px' }}>{label}</button>))}
+        <select value={priorityFilter} onChange={(e) => setPriorityFilter(e.target.value)} style={{ ...S.inp, width: '150px' }}><option value="">Toutes priorités</option><option value="high">🔴 Élevée</option><option value="medium">🟡 Moyenne</option><option value="low">🟢 Faible</option></select>
+      </div>
       {showForm && (
-        <Modal title="⚠️ Signaler une complication" onClose={() => setShowForm(false)}>
+        <Modal title="⚠️ Créer une alerte" onClose={() => setShowForm(false)}>
           <form onSubmit={handleCreate}>
-            <div style={S.fr}>
-              <label style={S.lbl}>Patient *</label>
-              {patients.length > 0 ? (
-                <select style={S.inp} required value={form.patientId} onChange={e => setForm({ ...form, patientId: e.target.value })}>
-                  <option value="">Sélectionner un patient...</option>
-                  {patients.map(p => <option key={p.id} value={p.id}>{p.prenom} {p.nom}</option>)}
-                </select>
-              ) : (
-                <input style={S.inp} required value={form.patientId} onChange={e => setForm({ ...form, patientId: e.target.value })} placeholder="ID du patient" />
-              )}
+            <div style={S.fr}><label style={S.lbl}>Patient *</label>
+              {patients.length > 0 ? (<select style={S.inp} required value={form.patientId} onChange={e => setForm({ ...form, patientId: e.target.value })}><option value="">Sélectionner...</option>{patients.map(p => <option key={p.id} value={p.id}>{p.prenom} {p.nom}</option>)}</select>) : (<input style={S.inp} required value={form.patientId} onChange={e => setForm({ ...form, patientId: e.target.value })} placeholder="ID patient" />)}
             </div>
-            <div style={S.fr}>
-              <label style={S.lbl}>Source</label>
-              <select style={S.inp} value={form.source} onChange={e => setForm({ ...form, source: e.target.value })}>
-                <option value="manual">Signalement manuel</option>
-                <option value="questionnaire">Via questionnaire</option>
-                <option value="exercise">Session d'exercice</option>
-              </select>
+            <div style={S.fr}><label style={S.lbl}>Type</label>
+              <select style={S.inp} value={form.anomalies[0].type} onChange={e => setForm({ ...form, anomalies: [{ ...form.anomalies[0], type: e.target.value }] })}><option value="">Sélectionner...</option><option value="douleur">😖 Douleur</option><option value="fievre">🌡️ Fièvre</option><option value="saignement">🩸 Saignement</option><option value="infection">🦠 Infection</option></select>
             </div>
-            <div style={S.fr}>
-              <label style={S.lbl}>Anomalie détectée *</label>
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <select style={{ ...S.inp, flex: 1 }} value={form.anomalies[0].type} onChange={e => setForm({ ...form, anomalies: [{ ...form.anomalies[0], type: e.target.value }] })}>
-                  <option value="">Type...</option>
-                  <option value="douleur">Douleur</option>
-                  <option value="fievre">Fièvre</option>
-                  <option value="saignement">Saignement</option>
-                  <option value="infection">Infection</option>
-                  <option value="oedeme">Œdème</option>
-                </select>
-                <select style={{ ...S.inp, flex: 1 }} value={form.anomalies[0].severity} onChange={e => setForm({ ...form, anomalies: [{ ...form.anomalies[0], severity: e.target.value }] })}>
-                  <option value="LOW">Faible</option>
-                  <option value="MEDIUM">Modéré</option>
-                  <option value="HIGH">Élevé</option>
-                  <option value="CRITICAL">Critique</option>
-                </select>
-                <input style={{ ...S.inp, flex: 1 }} type="number" placeholder="Valeur (ex: 39.5)" value={form.anomalies[0].value}
-                  onChange={e => setForm({ ...form, anomalies: [{ ...form.anomalies[0], value: parseFloat(e.target.value) }] })} />
-              </div>
+            <div style={S.fr}><label style={S.lbl}>Sévérité</label>
+              <select style={S.inp} value={form.anomalies[0].severity} onChange={e => setForm({ ...form, anomalies: [{ ...form.anomalies[0], severity: e.target.value }] })}><option value="LOW">🟢 Faible</option><option value="MEDIUM">🟡 Moyenne</option><option value="HIGH">🔴 Élevée</option><option value="CRITICAL">🔴🔴 Critique</option></select>
             </div>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <button type="submit" style={S.btn('#e53e3e')}>⚠️ Créer l'alerte</button>
-              <button type="button" onClick={() => setShowForm(false)} style={S.btn('#f0f0f0', '#555')}>Annuler</button>
-            </div>
+            <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}><button type="submit" style={S.btn('#e53e3e')}>⚠️ Créer</button><button type="button" onClick={() => setShowForm(false)} style={S.btn('#f0f0f0', '#555')}>Annuler</button></div>
           </form>
         </Modal>
       )}
-
-      <div style={S.g4}>
-        {[
-          { label: 'En attente',       value: pending.length,  color: '#e53e3e' },
-          { label: 'Prises en charge', value: acked.length,    color: '#ed8936' },
-          { label: 'Résolues',         value: resolved.length, color: '#48bb78' },
-          { label: 'Total',            value: alertes.length,  color: '#667eea' },
-        ].map((m, i) => (
-          <div key={i} style={S.metric(m.color)}>
-            <div style={{ fontSize: '28px', fontWeight: '700', color: m.color }}>{m.value}</div>
-            <div style={{ fontSize: '13px', color: '#666', marginTop: '4px' }}>{m.label}</div>
+      {filteredAlertes.length === 0 ? (<div style={{ ...S.card, textAlign: 'center', padding: '40px', color: '#aaa' }}>Aucune alerte</div>) : (
+        filteredAlertes.map(alert => (
+          <div key={alert.id} style={{ ...S.card, borderLeft: `4px solid ${getPriorityColor(alert.priority)}`, background: !alert.is_read ? '#fef5f5' : 'white', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div><div style={{ fontSize: '28px' }}>{getPriorityIcon(alert.priority)}</div></div>
+            <div style={{ flex: 1, marginLeft: '15px' }}>
+              <div><strong>{alert.title}</strong> <span style={{ fontSize: '12px', color: '#888' }}>{formatDate(alert.created_at)}</span></div>
+              <div style={{ fontSize: '14px', color: '#555' }}>{alert.message}</div>
+              <div style={{ fontSize: '12px', color: '#888' }}>👤 {alert.patient_name}</div>
+            </div>
+            <div><button onClick={() => handleMarkAsRead(alert.id)} style={S.btn('#48bb78', 'white', { padding: '6px 12px', fontSize: '12px' })}>✓ Lu</button><button onClick={() => handleDelete(alert.id)} style={{ ...S.btn('#e53e3e'), marginLeft: '8px', padding: '6px 12px', fontSize: '12px' }}>✕</button></div>
           </div>
-        ))}
-      </div>
-
-      {[{ title: '🔴 En attente', list: pending }, { title: '🟡 Prises en charge', list: acked }, { title: '✅ Résolues', list: resolved }].map(({ title, list }) => (
-        list.length > 0 && (
-          <div key={title} style={S.card}>
-            <h3 style={{ marginBottom: '16px' }}>{title} ({list.length})</h3>
-            {list.map(a => (
-              <div key={a.id} style={{ ...S.row, alignItems: 'flex-start', padding: '14px 0' }}>
-                <span style={{ fontSize: '28px' }}>{a.severity === 'CRITICAL' ? '🔴' : a.severity === 'HIGH' ? '🟠' : '🟡'}</span>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: '700', fontSize: '14px' }}>Patient: {a.patientId}</div>
-                  <div style={{ fontSize: '13px', color: '#666', marginTop: '4px' }}>
-                    {a.anomalies?.map((an, i) => <span key={i} style={{ marginRight: '8px' }}>• {an.type} ({an.severity}{an.value ? ': ' + an.value : ''})</span>)}
-                  </div>
-                  <div style={{ fontSize: '12px', color: '#aaa', marginTop: '4px' }}>{new Date(a.createdAt).toLocaleString('fr-FR')} · Source: {a.source}</div>
-                </div>
-                <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                  <span style={S.badge(a.severity === 'CRITICAL' ? '#c53030' : '#c05621', a.severity === 'CRITICAL' ? '#fed7d7' : '#feebc8')}>{a.severity}</span>
-                  {a.status === 'pending'      && <button onClick={() => handleAck(a.id)}     style={S.btn('#ed8936')}>Prendre en charge</button>}
-                  {a.status === 'acknowledged' && <button onClick={() => handleResolve(a.id)} style={S.btn('#48bb78')}>✓ Résoudre</button>}
-                </div>
-              </div>
-            ))}
-          </div>
-        )
-      ))}
-      {alertes.length === 0 && <div style={{ ...S.card, textAlign: 'center', color: '#48bb78', padding: '40px', fontSize: '16px' }}>✅ Aucune alerte active</div>}
+        ))
+      )}
     </div>
   );
 }
