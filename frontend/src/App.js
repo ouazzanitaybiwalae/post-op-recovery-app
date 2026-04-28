@@ -42,6 +42,122 @@ const addExerciseSession = (patientId, exerciseIds) => {
   return newSession;
 };
 
+// Gestion des médicaments (localStorage)
+const getMedications = () => JSON.parse(localStorage.getItem('medications') || '[]');
+const saveMedications = (meds) => localStorage.setItem('medications', JSON.stringify(meds));
+
+const addMedication = (patientId, medicationName, instructions) => {
+  const meds = getMedications();
+  const newMed = {
+    id: Date.now().toString(),
+    patientId: patientId,
+    medicationName: medicationName,
+    instructions: instructions || '',
+    status: 'active',
+    createdAt: new Date().toISOString()
+  };
+  meds.push(newMed);
+  saveMedications(meds);
+  return newMed;
+};
+
+const getPatientMedications = (patientId) => {
+  const meds = getMedications();
+  return meds.filter(m => m.patientId === patientId);
+};
+
+// Gestion des rendez-vous (localStorage)
+const getAppointments = () => JSON.parse(localStorage.getItem('appointments') || '[]');
+const saveAppointments = (appts) => localStorage.setItem('appointments', JSON.stringify(appts));
+
+const addAppointment = (patientId, doctorName, appointmentType, scheduledDate, doctorId) => {
+  const appts = getAppointments();
+  const newAppt = {
+    id: Date.now().toString(),
+    patientId: patientId,
+    doctorId: doctorId || 'doctor_001',
+    doctorName: doctorName,
+    appointmentType: appointmentType,
+    scheduledDate: scheduledDate,
+    status: 'scheduled',
+    createdAt: new Date().toISOString()
+  };
+  appts.push(newAppt);
+  saveAppointments(appts);
+  return newAppt;
+};
+
+const getPatientAppointments = (patientId) => {
+  const appts = getAppointments();
+  return appts.filter(a => a.patientId === patientId);
+};
+
+// ============ GESTION DES ALERTES (AJOUTÉ) ============
+const getLocalAlerts = () => JSON.parse(localStorage.getItem('local_alerts') || '[]');
+const saveLocalAlerts = (alerts) => localStorage.setItem('local_alerts', JSON.stringify(alerts));
+
+// Seuils pour les alertes automatiques
+const ALERT_THRESHOLDS = {
+  douleur: { warning: 5, critical: 7 },
+  fievre: { warning: 38, critical: 38.5 },
+};
+
+// Fonction pour analyser les réponses et créer des alertes automatiques
+const analyzeQuestionnaireAnswers = (questionnaireId, patientId, patientName, answers) => {
+  const anomalies = [];
+  
+  answers.forEach(answer => {
+    const questionText = answer.questionText?.toLowerCase() || '';
+    const value = answer.value;
+    
+    if ((questionText.includes('douleur') || questionText.includes('pain')) && !isNaN(parseFloat(value))) {
+      const numValue = parseFloat(value);
+      if (numValue >= ALERT_THRESHOLDS.douleur.critical) {
+        anomalies.push({ type: 'douleur', severity: 'CRITICAL', value: numValue, message: `⚠️ Douleur critique : ${numValue}/10` });
+      } else if (numValue >= ALERT_THRESHOLDS.douleur.warning) {
+        anomalies.push({ type: 'douleur', severity: 'HIGH', value: numValue, message: `Douleur élevée : ${numValue}/10` });
+      }
+    }
+    
+    if ((questionText.includes('fièvre') || questionText.includes('temperature') || questionText.includes('température')) && !isNaN(parseFloat(value))) {
+      const numValue = parseFloat(value);
+      if (numValue >= ALERT_THRESHOLDS.fievre.critical) {
+        anomalies.push({ type: 'fievre', severity: 'CRITICAL', value: numValue, message: `⚠️ Fièvre critique : ${numValue}°C` });
+      } else if (numValue >= ALERT_THRESHOLDS.fievre.warning) {
+        anomalies.push({ type: 'fievre', severity: 'HIGH', value: numValue, message: `Fièvre : ${numValue}°C` });
+      }
+    }
+    
+    if ((questionText.includes('saignement') || questionText.includes('bleeding')) && (value === 'oui' || value === true || value === 'yes')) {
+      anomalies.push({ type: 'saignement', severity: 'CRITICAL', value: value, message: `⚠️ Saignement anormal détecté` });
+    }
+  });
+  
+  if (anomalies.length > 0) {
+    const severityOrder = { LOW: 1, MEDIUM: 2, HIGH: 3, CRITICAL: 4 };
+    const maxSeverity = anomalies.reduce((max, a) => severityOrder[a.severity] > severityOrder[max.severity] ? a : max, anomalies[0]);
+    
+    const newAlert = {
+      id: `auto_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      patientId: patientId,
+      patient_name: patientName,
+      title: `⚠️ ALERTE ${maxSeverity.severity} - ${anomalies.map(a => a.type).join(' + ')}`,
+      message: anomalies.map(a => a.message).join(' | '),
+      priority: maxSeverity.severity === 'CRITICAL' ? 'high' : maxSeverity.severity === 'HIGH' ? 'high' : 'medium',
+      severity: maxSeverity.severity,
+      is_read: false,
+      created_at: new Date().toISOString(),
+      source: 'questionnaire'
+    };
+    
+    const existingAlerts = getLocalAlerts();
+    existingAlerts.unshift(newAlert);
+    saveLocalAlerts(existingAlerts);
+    return newAlert;
+  }
+  return null;
+};
+
 // Exercices par défaut pour le mode démo
 const DEFAULT_EXERCISES = [
   { id: '1', name: 'Flexion du genou', category: 'knee', description: 'Assis sur une chaise, pliez lentement le genou.', repetitions: 10, sets: 3, duration: 10, difficulty: 'beginner', instructions: ['Asseyez-vous sur une chaise', 'Gardez le dos droit', 'Pliez lentement le genou', 'Maintenez 5 secondes', 'Revenez à la position initiale'], precautions: ['Ne forcez pas', 'Arrêtez en cas de douleur'] },
@@ -54,18 +170,18 @@ const DEFAULT_EXERCISES = [
   { id: '8', name: 'Tirage élastique épaules', category: 'shoulder', description: 'Tirez un élastique vers vous.', repetitions: 12, sets: 3, duration: 10, difficulty: 'intermediate', instructions: ['Tenez l\'élastique à deux mains', 'Tirez vers vous', 'Gardez le dos droit'], precautions: ['Ne pas forcer'] },
 ];
 
-// ============ VIDEOS PAR CATEGORIE D'EXERCICE (URLs QUI FONCTIONNENT À 100%) ============
+// ============ VIDEOS PAR CATEGORIE D'EXERCICE (URLs qui fonctionnent) ============
 const VIDEOS = {
-  'knee':      'https://www.youtube.com/embed/j7rKKpwdXNE',   // ✅ Vidéo de rééducation qui fonctionne
-  'ankle':     'https://www.youtube.com/embed/sTANio_2E0Q',   // ✅ Rotation cheville
-  'cardiac':   'https://www.youtube.com/embed/4pKly2JojMw',   // ✅ Rééducation cardiaque
-  'shoulder':  'https://www.youtube.com/embed/VHSiRFkBRrA',   // ✅ Épaule
-  'hip':       'https://www.youtube.com/embed/ow9F7q1q3qs',   // ✅ Hanche
-  'back':      'https://www.youtube.com/embed/g8IBh5QnZSA',   // ✅ Dos
-  'breathing': 'https://www.youtube.com/embed/tybOi4hjZFQ',   // ✅ Respiration
-  'balance':   'https://www.youtube.com/embed/u9KHBNwmEPs',   // ✅ Équilibre
-  'strength':  'https://www.youtube.com/embed/2W4ZNSwoW_4',   // ✅ Renforcement
-  'default':   'https://www.youtube.com/embed/j7rKKpwdXNE',   // ✅ Par défaut
+  'knee':      'https://www.youtube.com/embed/j7rKKpwdXNE',
+  'ankle':     'https://www.youtube.com/embed/sTANio_2E0Q',
+  'cardiac':   'https://www.youtube.com/embed/4pKly2JojMw',
+  'shoulder':  'https://www.youtube.com/embed/VHSiRFkBRrA',
+  'hip':       'https://www.youtube.com/embed/ow9F7q1q3qs',
+  'back':      'https://www.youtube.com/embed/g8IBh5QnZSA',
+  'breathing': 'https://www.youtube.com/embed/tybOi4hjZFQ',
+  'balance':   'https://www.youtube.com/embed/u9KHBNwmEPs',
+  'strength':  'https://www.youtube.com/embed/2W4ZNSwoW_4',
+  'default':   'https://www.youtube.com/embed/j7rKKpwdXNE',
 };
 
 const getVideoKey = (category) => {
@@ -154,17 +270,9 @@ function ConfirmModal({ item, onConfirm, onCancel }) {
   );
 }
 
-function Spinner() {
-  return <div style={{ textAlign: 'center', padding: '40px', color: '#667eea', fontSize: '16px' }}>⏳ Chargement...</div>;
-}
-
-function ErrBox({ msg }) {
-  return msg ? <div style={{ padding: '10px', background: '#fed7d7', color: '#c53030', borderRadius: '8px', marginBottom: '12px', fontSize: '13px' }}>{msg}</div> : null;
-}
-
-function SuccessBox({ msg }) {
-  return msg ? <div style={{ padding: '12px', background: '#c6f6d5', color: '#276749', borderRadius: '8px', marginBottom: '16px', fontWeight: '600' }}>{msg}</div> : null;
-}
+function Spinner() { return <div style={{ textAlign: 'center', padding: '40px', color: '#667eea', fontSize: '16px' }}>⏳ Chargement...</div>; }
+function ErrBox({ msg }) { return msg ? <div style={{ padding: '10px', background: '#fed7d7', color: '#c53030', borderRadius: '8px', marginBottom: '12px', fontSize: '13px' }}>{msg}</div> : null; }
+function SuccessBox({ msg }) { return msg ? <div style={{ padding: '12px', background: '#c6f6d5', color: '#276749', borderRadius: '8px', marginBottom: '16px', fontWeight: '600' }}>{msg}</div> : null; }
 
 // ============ NAVBAR ============
 function Navbar({ user, onLogout }) {
@@ -185,6 +293,8 @@ function Navbar({ user, onLogout }) {
     { path: '/mon-parcours',       label: 'Mon parcours',       icon: '📋' },
     { path: '/mes-questionnaires', label: 'Mes questionnaires', icon: '📝' },
     { path: '/mes-exercices',      label: 'Mes exercices',      icon: '💪' },
+    { path: '/mes-rendez-vous',    label: 'Mes rendez-vous',    icon: '📅' },
+    { path: '/mes-alertes',        label: 'Mes alertes',        icon: '🚨' },
   ];
 
   const links = isPatient ? patientLinks : proLinks;
@@ -528,6 +638,7 @@ function PageDashboardPatient({ user }) {
   const [myPlan, setMyPlan] = useState(null);
   const [myQuestionnaires, setMyQuestionnaires] = useState([]);
   const [myExercices, setMyExercices] = useState([]);
+  const [patientAlerts, setPatientAlerts] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -556,6 +667,11 @@ function PageDashboardPatient({ user }) {
         }
         setMyExercices(sessions);
         
+        // Charger les alertes du patient
+        const allAlerts = getLocalAlerts();
+        const myAlerts = allAlerts.filter(a => a.patientId === user.id);
+        setPatientAlerts(myAlerts);
+        
       } catch (error) {
         console.error('Erreur chargement dashboard patient:', error);
       }
@@ -568,6 +684,7 @@ function PageDashboardPatient({ user }) {
 
   const qEnAttente = myQuestionnaires.filter(q => q.status === 'sent').length;
   const qCompletes = myQuestionnaires.filter(q => q.status === 'completed').length;
+  const unreadAlerts = patientAlerts.filter(a => !a.is_read).length;
 
   return (
     <div style={S.page}>
@@ -599,6 +716,25 @@ function PageDashboardPatient({ user }) {
           <div style={{ fontSize: '13px', color: '#666' }}>Questionnaire(s) complétés</div>
         </div>
       </div>
+
+      {/* Alertes récentes pour le patient - NOUVEAU */}
+      {unreadAlerts > 0 && (
+        <div style={{ ...S.card, borderLeft: '4px solid #e53e3e', background: '#fff5f5', marginBottom: '16px' }}>
+          <h3 style={{ marginBottom: '12px', color: '#e53e3e' }}>🚨 Alertes en cours ({unreadAlerts})</h3>
+          {patientAlerts.filter(a => !a.is_read).slice(0, 3).map(alert => (
+            <div key={alert.id} style={{ marginBottom: '12px', padding: '10px', background: 'white', borderRadius: '8px' }}>
+              <div style={{ fontWeight: '600' }}>{alert.title}</div>
+              <div style={{ fontSize: '13px', color: '#555' }}>{alert.message}</div>
+              <div style={{ fontSize: '11px', color: '#888', marginTop: '5px' }}>
+                {new Date(alert.created_at).toLocaleString('fr-FR')}
+              </div>
+            </div>
+          ))}
+          <Link to="/mes-alertes" style={{ ...S.btn('#e53e3e'), textDecoration: 'none', display: 'inline-block' }}>
+            Voir toutes mes alertes →
+          </Link>
+        </div>
+      )}
 
       {myPlan ? (
         <div style={{ ...S.card, borderLeft: '4px solid #667eea' }}>
@@ -752,25 +888,42 @@ function PageMesQuestionnaires({ user }) {
     const questions = getQuestionsForQuestionnaire(showFill);
     const ansArray = questions.map((q, i) => ({
       questionId: q.id,
+      questionText: q.text,
       value: answers[i] !== undefined ? answers[i] : ''
     }));
+    
     try {
       const res = await fetch(`${API.questionnaire}/api/questionnaire/submit`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ questionnaireId: showFill.id, patientId: user.id, answers: ansArray })
       });
       const data = await res.json();
+      
       if (data.success) {
-        const alertMsg = data.responseData?.anomaliesDetected > 0
-          ? `✅ Soumis ! ⚠️ ${data.responseData.anomaliesDetected} anomalie(s) détectée(s) — votre équipe médicale est notifiée.`
-          : '✅ Questionnaire soumis avec succès ! Merci.';
+        // ANALYSE AUTOMATIQUE DES RÉPONSES POUR CRÉER DES ALERTES - NOUVEAU
+        const createdAlert = analyzeQuestionnaireAnswers(
+          showFill.id, 
+          user.id, 
+          `${user.prenom} ${user.nom}`, 
+          ansArray
+        );
+        
+        let alertMsg = '✅ Questionnaire soumis avec succès ! Merci.';
+        if (createdAlert) {
+          alertMsg = `⚠️ Des anomalies ont été détectées dans vos réponses. Une alerte ${createdAlert.severity} a été envoyée à votre équipe médicale.`;
+        } else if (data.responseData?.anomaliesDetected > 0) {
+          alertMsg = `✅ Soumis ! ⚠️ ${data.responseData.anomaliesDetected} anomalie(s) détectée(s) — votre équipe médicale est notifiée.`;
+        }
+        
         setMsg(alertMsg);
         setQuestionnaires(questionnaires.map(q => q.id === showFill.id ? { ...q, status: 'completed' } : q));
         setShowFill(null);
         setAnswers({});
         setTimeout(() => setMsg(''), 6000);
       } else setErr(data.message);
-    } catch { setErr('Erreur lors de la soumission'); }
+    } catch { 
+      setErr('Erreur lors de la soumission');
+    }
   };
 
   if (loading) return <div style={S.page}><Spinner /></div>;
@@ -889,7 +1042,7 @@ function PageMesQuestionnaires({ user }) {
   );
 }
 
-// ============ MES EXERCICES (PAGE PATIENT) - CORRIGÉ ============
+// ============ MES EXERCICES (PAGE PATIENT) ============
 function PageMesExercices({ user }) {
   const [sessions, setSessions] = useState([]);
   const [library, setLibrary] = useState([]);
@@ -897,7 +1050,6 @@ function PageMesExercices({ user }) {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState('');
 
-  // Fonction pour charger les sessions du patient depuis localStorage
   const loadPatientSessions = () => {
     const allSessions = getExerciseSessions();
     const patientSessions = allSessions.filter(s => 
@@ -991,7 +1143,6 @@ function PageMesExercices({ user }) {
         </Modal>
       )}
 
-      {/* Afficher les sessions assignées par l'infirmier */}
       {sessions.length > 0 ? (
         sessions.map((session, si) => {
           const exercicesDeSession = getExercicesDeSession(session);
@@ -1059,6 +1210,221 @@ function ExerciceCard({ ex, onVideo }) {
         style={{ width: '100%', padding: '10px', background: 'linear-gradient(135deg,#667eea,#764ba2)', border: 'none', borderRadius: '8px', fontSize: '13px', color: 'white', cursor: 'pointer', fontWeight: '600' }}>
         ▶️ Voir la vidéo guidée + Instructions
       </button>
+    </div>
+  );
+}
+
+// ============ MES ALERTES (PAGE PATIENT) - NOUVEAU ============
+function PageMesAlertes({ user }) {
+  const [alerts, setAlerts] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const allAlerts = getLocalAlerts();
+    const myAlerts = allAlerts.filter(a => a.patientId === user.id);
+    setAlerts(myAlerts.sort((a,b) => new Date(b.created_at) - new Date(a.created_at)));
+    setLoading(false);
+  }, [user.id]);
+
+  if (loading) return <Spinner />;
+
+  const getSeverityIcon = (severity) => {
+    switch(severity) {
+      case 'CRITICAL': return '🔴🔴';
+      case 'HIGH': return '🔴';
+      case 'MEDIUM': return '🟡';
+      default: return '🟢';
+    }
+  };
+
+  return (
+    <div style={S.page}>
+      <h1 style={S.h1}>🚨 Mes alertes de santé</h1>
+      <p style={S.sub}>Alertes générées automatiquement à partir de vos questionnaires</p>
+      
+      {alerts.length === 0 ? (
+        <div style={{ ...S.card, textAlign: 'center', padding: '40px', color: '#48bb78' }}>
+          <div style={{ fontSize: '48px', marginBottom: '16px' }}>✅</div>
+          <div style={{ fontSize: '16px', fontWeight: '600' }}>Aucune alerte</div>
+          <div style={{ fontSize: '13px', marginTop: '8px' }}>Votre suivi médical est bon !</div>
+        </div>
+      ) : (
+        alerts.map(alert => (
+          <div key={alert.id} style={{ ...S.card, borderLeft: `4px solid ${alert.priority === 'high' ? '#e53e3e' : alert.priority === 'medium' ? '#ed8936' : '#48bb78'}`, marginBottom: '12px', background: !alert.is_read ? '#fff5f5' : 'white' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+              <div>
+                <span style={{ fontSize: '24px', marginRight: '10px' }}>{getSeverityIcon(alert.severity)}</span>
+                <strong>{alert.title}</strong>
+              </div>
+              <span style={S.badge(alert.priority === 'high' ? '#c53030' : alert.priority === 'medium' ? '#c05621' : '#276749', 
+                alert.priority === 'high' ? '#fed7d7' : alert.priority === 'medium' ? '#feebc8' : '#c6f6d5')}>
+                {alert.severity}
+              </span>
+            </div>
+            <div style={{ marginTop: '12px', fontSize: '14px', color: '#555' }}>{alert.message}</div>
+            <div style={{ marginTop: '10px', fontSize: '11px', color: '#888' }}>
+              📅 {new Date(alert.created_at).toLocaleString('fr-FR')} · Source: {alert.source === 'questionnaire' ? '📝 Questionnaire' : '👨‍⚕️ Manuelle'}
+              {alert.is_read && <span style={{ marginLeft: '10px', color: '#48bb78' }}>✓ Lu par l'équipe</span>}
+            </div>
+          </div>
+        ))
+      )}
+    </div>
+  );
+}
+
+// ============ MES RENDEZ-VOUS ET MÉDICAMENTS (PAGE PATIENT) ============
+function PageMesRendezVous({ user }) {
+  const [appointments, setAppointments] = useState([]);
+  const [medications, setMedications] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState('');
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const allAppointments = getAppointments();
+        const patientAppointments = allAppointments.filter(a => a.patientId === user.id || a.patientId === `${user.prenom} ${user.nom}`);
+        setAppointments(patientAppointments);
+        
+        const allMedications = getMedications();
+        const patientMedications = allMedications.filter(m => m.patientId === user.id || m.patientId === `${user.prenom} ${user.nom}`);
+        setMedications(patientMedications);
+        
+      } catch (error) {
+        console.error('Erreur chargement:', error);
+        setErr('Service non disponible');
+      }
+      setLoading(false);
+    };
+    load();
+  }, [user.id, user.prenom, user.nom]);
+
+  if (loading) return <div style={S.page}><Spinner /></div>;
+
+  const upcomingAppointments = appointments.filter(a => new Date(a.scheduledDate) > new Date());
+  const pastAppointments = appointments.filter(a => new Date(a.scheduledDate) <= new Date());
+  const activeMedications = medications.filter(m => m.status === 'active');
+  const pastMedications = medications.filter(m => m.status !== 'active');
+
+  return (
+    <div style={S.page}>
+      <h1 style={S.h1}>📅 Mes rendez-vous et traitements</h1>
+      <p style={S.sub}>Consultez vos prochains rendez-vous et vos médicaments prescrits</p>
+
+      <ErrBox msg={err} />
+
+      <div style={S.card}>
+        <h3 style={{ marginBottom: '16px' }}>📅 Prochains rendez-vous</h3>
+        {upcomingAppointments.length === 0 && (
+          <div style={{ textAlign: 'center', padding: '30px', color: '#aaa' }}>
+            <div style={{ fontSize: '32px', marginBottom: '8px' }}>📭</div>
+            <div>Aucun rendez-vous à venir</div>
+            <div style={{ fontSize: '12px', marginTop: '8px' }}>Votre équipe médicale vous contactera pour planifier vos consultations</div>
+          </div>
+        )}
+        {upcomingAppointments.map(apt => (
+          <div key={apt.id} style={{ ...S.row, justifyContent: 'space-between', borderBottom: '1px solid #f0f0f0', padding: '12px 0' }}>
+            <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+              <span style={{ fontSize: '28px' }}>📅</span>
+              <div>
+                <div style={{ fontWeight: '600' }}>{apt.appointmentType || 'Consultation médicale'}</div>
+                <div style={{ fontSize: '13px', color: '#555' }}>
+                  👨‍⚕️ Dr. {apt.doctorName || 'Médecin'}
+                </div>
+                <div style={{ fontSize: '12px', color: '#888' }}>
+                  📍 {new Date(apt.scheduledDate).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} à {new Date(apt.scheduledDate).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                </div>
+              </div>
+            </div>
+            <span style={S.badge('#2b6cb0', '#bee3f8')}>
+              {apt.status === 'scheduled' ? 'Planifié' : apt.status === 'completed' ? 'Effectué' : 'Confirmé'}
+            </span>
+          </div>
+        ))}
+      </div>
+
+      {pastAppointments.length > 0 && (
+        <div style={S.card}>
+          <h3 style={{ marginBottom: '16px' }}>📋 Rendez-vous passés</h3>
+          {pastAppointments.map(apt => (
+            <div key={apt.id} style={{ ...S.row, justifyContent: 'space-between', borderBottom: '1px solid #f0f0f0', padding: '12px 0', opacity: 0.7 }}>
+              <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                <span style={{ fontSize: '24px' }}>✅</span>
+                <div>
+                  <div style={{ fontWeight: '500' }}>{apt.appointmentType || 'Consultation'}</div>
+                  <div style={{ fontSize: '12px', color: '#888' }}>
+                    {new Date(apt.scheduledDate).toLocaleDateString('fr-FR')}
+                  </div>
+                </div>
+              </div>
+              <span style={S.badge('#276749', '#c6f6d5')}>Effectué</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div style={S.card}>
+        <h3 style={{ marginBottom: '16px' }}>💊 Mes médicaments en cours</h3>
+        {activeMedications.length === 0 && (
+          <div style={{ textAlign: 'center', padding: '30px', color: '#aaa' }}>
+            <div style={{ fontSize: '32px', marginBottom: '8px' }}>💊</div>
+            <div>Aucun médicament en cours</div>
+            <div style={{ fontSize: '12px', marginTop: '8px' }}>Votre médecin vous prescrira un traitement si nécessaire</div>
+          </div>
+        )}
+        {activeMedications.map(med => (
+          <div key={med.id} style={{ ...S.row, justifyContent: 'space-between', borderBottom: '1px solid #f0f0f0', padding: '12px 0' }}>
+            <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+              <span style={{ fontSize: '28px' }}>💊</span>
+              <div>
+                <div style={{ fontWeight: '600' }}>{med.medicationName}</div>
+                <div style={{ fontSize: '12px', color: '#888' }}>
+                  Prescrit le {new Date(med.createdAt).toLocaleDateString('fr-FR')}
+                </div>
+                {med.instructions && (
+                  <div style={{ fontSize: '12px', color: '#555', marginTop: '4px' }}>
+                    📋 {med.instructions}
+                  </div>
+                )}
+              </div>
+            </div>
+            <span style={S.badge('#276749', '#c6f6d5')}>En cours</span>
+          </div>
+        ))}
+      </div>
+
+      {pastMedications.length > 0 && (
+        <div style={S.card}>
+          <h3 style={{ marginBottom: '16px' }}>✅ Médicaments terminés</h3>
+          {pastMedications.map(med => (
+            <div key={med.id} style={{ ...S.row, justifyContent: 'space-between', borderBottom: '1px solid #f0f0f0', padding: '12px 0', opacity: 0.7 }}>
+              <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                <span style={{ fontSize: '24px' }}>✅</span>
+                <div>
+                  <div style={{ fontWeight: '500' }}>{med.medicationName}</div>
+                  <div style={{ fontSize: '12px', color: '#888' }}>
+                    Prescrit le {new Date(med.createdAt).toLocaleDateString('fr-FR')}
+                  </div>
+                </div>
+              </div>
+              <span style={S.badge('#888', '#eee')}>Terminé</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div style={{ ...S.card, background: '#e8f0fe', borderLeft: '4px solid #667eea' }}>
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+          <span style={{ fontSize: '28px' }}>ℹ️</span>
+          <div>
+            <div style={{ fontWeight: '600', marginBottom: '4px' }}>Besoin d'informations ?</div>
+            <div style={{ fontSize: '13px', color: '#555' }}>
+              Pour toute question sur vos rendez-vous ou traitements, contactez votre équipe médicale au <strong>01 23 45 67 89</strong>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -1438,7 +1804,7 @@ function PageQuestionnaires({ user }) {
   );
 }
 
-// ============ EXERCICES (PAGE PRO) - CORRIGÉ ============
+// ============ EXERCICES (PAGE PRO) ============
 function PageExercices({ user }) {
   const [library, setLibrary] = useState([]);
   const [showCreate, setShowCreate] = useState(false);
@@ -1450,7 +1816,6 @@ function PageExercices({ user }) {
   const [existingSessions, setExistingSessions] = useState([]);
   const patients = getUsers().filter(u => u.role === 'patient');
 
-  // Fonction pour rafraîchir l'affichage des sessions
   const refreshSessions = () => {
     const sessions = getExerciseSessions();
     setExistingSessions([...sessions]);
@@ -1501,14 +1866,9 @@ function PageExercices({ user }) {
     const selectedPatient = patients.find(p => p.id === form.patientId);
     const patientName = selectedPatient ? `${selectedPatient.prenom} ${selectedPatient.nom}` : form.patientId;
     
-    // Sauvegarde IMMÉDIATE dans localStorage (sans appel API)
     addExerciseSession(form.patientId, form.exerciseIds);
     setMsg(`✅ Plan d'exercices assigné à ${patientName} !`);
-    
-    // Rafraîchir l'affichage
     refreshSessions();
-    
-    // Réinitialiser le formulaire
     setShowCreate(false);
     setForm({ patientId: '', exerciseIds: [] });
     
@@ -1517,7 +1877,6 @@ function PageExercices({ user }) {
 
   if (loading) return <div style={S.page}><Spinner /></div>;
 
-  // Grouper les sessions par patient
   const sessionsByPatient = {};
   existingSessions.forEach(session => {
     const patient = patients.find(p => p.id === session.patientId);
@@ -1607,7 +1966,6 @@ function PageExercices({ user }) {
         ))}
       </div>
 
-      {/* Liste des sessions assignées */}
       <h3 style={{ marginBottom: '12px', marginTop: '24px' }}>📋 Plans d'exercices assignés ({existingSessions.length})</h3>
       {existingSessions.length === 0 && (
         <div style={{ ...S.card, textAlign: 'center', color: '#aaa', padding: '20px' }}>
@@ -1794,7 +2152,14 @@ function PageCoordination({ user }) {
     try {
       const res = await fetch(`${API.coordination}/api/medication/add`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ patientId: form.patientId || myId, medicationName: form.medicationName }) });
       const data = await res.json();
-      if (data.success) { setMeds([...meds, data.medication]); setMsg('✅ Médicament ajouté !'); setShowForm(false); setForm({}); setTimeout(() => setMsg(''), 3000); }
+      if (data.success) { 
+        setMeds([...meds, data.medication]); 
+        addMedication(form.patientId || myId, form.medicationName, '');
+        setMsg('✅ Médicament ajouté !'); 
+        setShowForm(false); 
+        setForm({}); 
+        setTimeout(() => setMsg(''), 3000); 
+      }
     } catch { setErr('Erreur connexion'); }
   };
 
@@ -1803,7 +2168,14 @@ function PageCoordination({ user }) {
     try {
       const res = await fetch(`${API.coordination}/api/appointment/create`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ patientId: form.patientId || myId, doctorId: myId, doctorName: form.doctorName || `${user?.prenom} ${user?.nom}`, appointmentType: form.appointmentType, scheduledDate: form.scheduledDate }) });
       const data = await res.json();
-      if (data.success) { setAppointments([...appointments, data.appointment]); setMsg('✅ Rendez-vous créé !'); setShowForm(false); setForm({}); setTimeout(() => setMsg(''), 3000); }
+      if (data.success) { 
+        setAppointments([...appointments, data.appointment]); 
+        addAppointment(form.patientId || myId, form.doctorName || `${user?.prenom} ${user?.nom}`, form.appointmentType, form.scheduledDate, myId);
+        setMsg('✅ Rendez-vous créé !'); 
+        setShowForm(false); 
+        setForm({}); 
+        setTimeout(() => setMsg(''), 3000); 
+      }
     } catch { setErr('Erreur connexion'); }
   };
 
@@ -1976,6 +2348,8 @@ export default function App() {
         <Route path="/mon-parcours"       element={<PR><PageMonParcours user={user} /></PR>} />
         <Route path="/mes-questionnaires" element={<PR><PageMesQuestionnaires user={user} /></PR>} />
         <Route path="/mes-exercices"      element={<PR><PageMesExercices user={user} /></PR>} />
+        <Route path="/mes-rendez-vous"    element={<PR><PageMesRendezVous user={user} /></PR>} />
+        <Route path="/mes-alertes"        element={<PR><PageMesAlertes user={user} /></PR>} />
         <Route path="/parcours"           element={<PR><PageParcours user={user} /></PR>} />
         <Route path="/questionnaires"     element={<PR><PageQuestionnaires user={user} /></PR>} />
         <Route path="/exercices"          element={<PR><PageExercices user={user} /></PR>} />
